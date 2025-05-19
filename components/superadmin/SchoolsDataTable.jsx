@@ -151,6 +151,11 @@ export default function SchoolsDataTable({ schools }) {
                          </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
+                       <DropdownMenuItem asChild>
+                       <Link href={`/superadmin/schools/${school.id}/admins`} className="flex items-center w-full cursor-pointer">
+                         <UsersIcon className="mr-2 h-4 w-4" /> Manage Admins
+                       </Link>
+                    </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                         onClick={() => openDeleteDialog({ id: school.id, name: school.name })}

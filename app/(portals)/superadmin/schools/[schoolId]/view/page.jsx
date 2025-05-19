@@ -1,7 +1,10 @@
 // File: app/(portals)/superadmin/schools/[schoolId]/view/page.jsx
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ChevronLeft, Edit, Trash2, Building, Mail, Phone, Globe, MapPin, CalendarDays, Clock, Tag, DollarSign, CheckCircle, XCircle } from "lucide-react";
+import { 
+    ChevronLeft, Edit, Trash2, Building, Mail, Phone, Globe, MapPin, 
+    CalendarDays, Clock, Tag, DollarSign, CheckCircle, XCircle, Users as UsersIcon // Added UsersIcon
+} from "lucide-react";
 import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path
@@ -9,12 +12,15 @@ import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator"; // For visual separation
+import { Separator } from "@/components/ui/separator";
 
-// Helper to format date (can be moved to a utils file)
+// Helper to format date (can be moved to a utils file if used elsewhere)
 const formatDate = (dateString, options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) => {
   if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString(undefined, options);
+  // Ensure dateString is a valid date or Date object before calling toLocaleDateString
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Invalid Date";
+  return date.toLocaleDateString(undefined, options);
 };
 
 // Function to fetch school data by ID (Server-side)
@@ -38,7 +44,7 @@ async function getSchoolById(schoolId) {
 export async function generateMetadata({ params }) {
   const school = await getSchoolById(params.schoolId);
   if (!school) {
-    return { title: "School Not Found" };
+    return { title: "School Not Found | Sukuu" };
   }
   return {
     title: `View School: ${school.name} | Super Admin - Sukuu`,
@@ -47,16 +53,19 @@ export async function generateMetadata({ params }) {
 }
 
 // Helper component for displaying detail items
-function DetailItem({ icon: Icon, label, value, isBadge = false, badgeVariant = "secondary" }) {
-  if (value === null || value === undefined || value === "") return null; // Don't render if value is not set (for optional fields)
+function DetailItem({ icon: Icon, label, value, isHtml = false, isBadge = false, badgeVariant = "secondary" }) {
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === "")) return null; 
+  
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center py-2">
-      <dt className="w-full sm:w-1/3 md:w-1/4 text-sm font-medium text-muted-foreground flex items-center">
-        <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+    <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] items-start py-3 gap-1 md:gap-4"> {/* Adjusted grid for better alignment */}
+      <dt className="text-sm font-medium text-muted-foreground flex items-center">
+        {Icon && <Icon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />} {/* Added shrink-0 */}
         {label}
       </dt>
-      <dd className="w-full sm:w-2/3 md:w-3/4 mt-1 sm:mt-0 text-sm text-foreground">
-        {isBadge ? <Badge variant={badgeVariant}>{String(value)}</Badge> : String(value)}
+      <dd className="text-sm text-foreground break-words"> {/* Added break-words */}
+        {isHtml ? <div dangerouslySetInnerHTML={{ __html: String(value) }} /> : 
+         isBadge ? <Badge variant={badgeVariant} className={badgeVariant === "default" && value === "Active" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : badgeVariant === "destructive" && value === "Inactive" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : ""}>{String(value)}</Badge> : 
+         String(value)}
       </dd>
     </div>
   );
@@ -91,28 +100,34 @@ export default async function ViewSchoolPage({ params }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Link href="/superadmin/schools" passHref>
-            <Button variant="outline" size="sm" className="mb-2">
+            <Button variant="outline" size="sm" className="mb-3"> {/* Increased margin-bottom */}
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to Schools List
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl flex items-center gap-2">
-            <Building className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl flex items-center gap-3"> {/* Increased gap */}
+            <Building className="h-9 w-9 text-primary" /> {/* Slightly larger icon */}
             {school.name}
           </h1>
           <p className="text-lg text-muted-foreground mt-1">
-            Detailed information for the institution.
+            Detailed information for this educational institution.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/superadmin/schools/${school.id}/edit`} passHref>
-            <Button variant="default" size="sm">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0"> {/* Actions alignment */}
+          <Link href={`/superadmin/schools/${school.id}/admins`} passHref className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full">
+              <UsersIcon className="mr-2 h-4 w-4" />
+              Manage Admins
+            </Button>
+          </Link>
+          <Link href={`/superadmin/schools/${school.id}/edit`} passHref className="w-full sm:w-auto">
+            <Button variant="default" className="w-full">
               <Edit className="mr-2 h-4 w-4" />
               Edit School
             </Button>
           </Link>
-          {/* Delete button - placeholder for now, will need confirmation */}
-          {/* <Button variant="destructive" size="sm" onClick={() => handleDeleteSchool(school.id)}>
+          {/* Delete button - placeholder for now, will need confirmation
+          <Button variant="destructive" size="sm" onClick={() => handleDeleteSchool(school.id)} className="w-full sm:w-auto">
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button> */}
@@ -121,25 +136,31 @@ export default async function ViewSchoolPage({ params }) {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>School Information</CardTitle>
-          <CardDescription>Core details and contact information.</CardDescription>
+          <CardTitle>School Overview</CardTitle>
+          <CardDescription>Core details, contact, and operational information.</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="divide-y divide-border">
+            {/* Using DetailItem component for consistent display */}
             <DetailItem icon={Mail} label="School Email" value={school.schoolEmail} />
-            <DetailItem icon={Phone} label="Phone Number" value={school.phoneNumber} />
-            <DetailItem icon={Globe} label="Website" value={school.website ? <a href={school.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{school.website}</a> : "N/A"} />
+            <DetailItem icon={Phone} label="Phone Number" value={school.phoneNumber || "N/A"} />
+            <DetailItem 
+              icon={Globe} 
+              label="Website" 
+              value={school.website ? `<a href="${school.website.startsWith('http') ? school.website : `https://${school.website}`}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${school.website}</a>` : "N/A"}
+              isHtml={!!school.website}
+            />
             {school.logoUrl && (
-              <div className="flex flex-col sm:flex-row py-3">
-                <dt className="w-full sm:w-1/3 md:w-1/4 text-sm font-medium text-muted-foreground flex items-center">
-                  <Building className="mr-2 h-4 w-4 text-muted-foreground" /> Logo
+              <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] items-start py-3 gap-1 md:gap-4">
+                <dt className="text-sm font-medium text-muted-foreground flex items-center">
+                  <Building className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" /> Logo
                 </dt>
-                <dd className="w-full sm:w-2/3 md:w-3/4 mt-1 sm:mt-0">
-                  <img src={school.logoUrl} alt={`${school.name} Logo`} className="h-16 w-auto max-w-xs rounded border p-1 bg-muted" />
+                <dd className="mt-1 md:mt-0">
+                  <img src={school.logoUrl} alt={`${school.name} Logo`} className="h-20 w-auto max-w-[200px] rounded border p-1 bg-muted object-contain" />
                 </dd>
               </div>
             )}
-            <Separator className="my-1" />
+            <Separator className="my-1" /> {/* Separators are useful if DetailItem doesn't have its own bottom border */}
             <DetailItem icon={MapPin} label="Full Address" value={fullAddress || "N/A"} />
             <Separator className="my-1" />
             <DetailItem icon={CalendarDays} label="Academic Year" value={school.currentAcademicYear} />
