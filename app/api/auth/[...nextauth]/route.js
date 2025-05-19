@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaClient } from "@prisma/client"; // Or import your shared Prisma client instance if you have one (e.g., from '@/lib/prisma')
 import bcrypt from "bcryptjs";
+import prisma from '@/lib/prisma';
 
 // It's good practice to instantiate PrismaClient once and reuse it.
 // If you create a lib/prisma.js, import it from there.
