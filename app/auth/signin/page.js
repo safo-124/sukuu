@@ -1,7 +1,8 @@
 // File: app/auth/signin/page.jsx
 "use client"; // Still a client component to manage session status for redirect
 
-import SignInForm from "@/components/auth/SignInForm"; // Adjust path if needed
+import SignInForm from "@/components/auth/SignInForm";
+ // Adjust path if needed
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -10,6 +11,7 @@ export default function SignInPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+ 
 
   useEffect(() => {
     if (status === "authenticated") {
