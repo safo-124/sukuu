@@ -2,27 +2,41 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { School, Users, Settings, BarChart3, PlusCircle } from "lucide-react"; // Added BarChart3 for stats, PlusCircle for create
-// import { getServerSession } from "next-auth/next"; // For server-side data fetching in the future
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path if needed
-// import prisma from "@/lib/prisma"; // If fetching data
+import { School, Users, Settings, BarChart3, PlusCircle, ListChecks, Clock3 } from "lucide-react"; // Added ListChecks, Clock3
+import prisma from "@/lib/prisma"; // For fetching data
+import { Badge } from "@/components/ui/badge"; // To display school status
+
+// Helper to format date (can be moved to a utils file)
+const formatDate = (dateString, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
+  if (!dateString) return "N/A";
+  return new Date(dateString).toLocaleDateString(undefined, options);
+};
+
 
 export default async function SuperAdminDashboardPage() {
-  // const session = await getServerSession(authOptions); // If you need session data for checks
-
-  // --- Placeholder Data ---
-  // In the future, you'll fetch this data from your database, e.g.:
-  // const totalSchools = await prisma.school.count();
-  // const activeUsers = await prisma.user.count({ where: { isActive: true } });
-  // const systemHealth = "Operational"; // This might come from a monitoring service or DB check
+  // Fetch dynamic data
+  const totalSchools = await prisma.school.count();
+  const activeUsers = await prisma.user.count({ where: { isActive: true } }); // Example: Platform-wide active users
+  const recentlyAddedSchools = await prisma.school.findMany({
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 3, // Get the latest 3 schools
+    select: { // Select only necessary fields
+        id: true,
+        name: true,
+        schoolEmail: true,
+        createdAt: true,
+        isActive: true,
+    }
+  });
 
   const stats = {
-    totalSchools: 0,    // Placeholder
-    activeUsers: 1,     // Placeholder (Super Admin themselves)
-    systemHealth: "Operational",
-    pendingApprovals: 0 // Example of another stat
+    totalSchools: totalSchools,
+    activeUsers: activeUsers,
+    systemHealth: "Operational", // This can remain static or be fetched from a status service
+    pendingTasks: 0, // Placeholder, could be count of pending approvals if feature exists
   };
-  // --- End Placeholder Data ---
 
   return (
     <>
@@ -45,16 +59,16 @@ export default async function SuperAdminDashboardPage() {
       </div>
 
       {/* Stats Cards Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 mb-8"> {/* Increased gap */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Schools</CardTitle>
-            <School className="h-5 w-5 text-muted-foreground" />
+            <School className="h-5 w-5 text-primary" /> {/* Themed icon color */}
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.totalSchools}</div>
             <p className="text-xs text-muted-foreground pt-1">
-              Schools registered on the platform.
+              Registered schools on the platform.
             </p>
           </CardContent>
         </Card>
@@ -62,7 +76,7 @@ export default async function SuperAdminDashboardPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-5 w-5 text-muted-foreground" />
+            <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.activeUsers}</div>
@@ -75,10 +89,10 @@ export default async function SuperAdminDashboardPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <Settings className="h-5 w-5 text-muted-foreground" />
+            <Settings className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-500">{stats.systemHealth}</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.systemHealth}</div>
             <p className="text-xs text-muted-foreground pt-1">
               Current operational status.
             </p>
@@ -88,27 +102,68 @@ export default async function SuperAdminDashboardPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
-            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            <ListChecks className="h-5 w-5 text-primary" /> {/* Changed Icon */}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.pendingApprovals}</div>
+            <div className="text-3xl font-bold">{stats.pendingTasks}</div>
             <p className="text-xs text-muted-foreground pt-1">
-              Items requiring attention.
+              Items requiring administrative attention.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions Section */}
+      {/* Recently Added Schools Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold tracking-tight mb-4">Recently Added Schools</h2>
+        {recentlyAddedSchools.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+            {recentlyAddedSchools.map((school) => (
+              <Card key={school.id} className="hover:shadow-lg transition-shadow flex flex-col">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{school.name}</CardTitle>
+                    <Badge variant={school.isActive ? "default" : "destructive"}
+                           className={school.isActive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}>
+                      {school.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-sm">{school.schoolEmail}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock3 className="mr-1.5 h-3.5 w-3.5" />
+                    Registered: {formatDate(school.createdAt)}
+                  </div>
+                </CardContent>
+                <div className="p-4 pt-0 mt-auto"> {/* Footer actions */}
+                  <Link href={`/superadmin/schools/${school.id}/view`} passHref>
+                    <Button variant="outline" size="sm" className="w-full">View Details</Button>
+                  </Link>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              No schools have been added recently.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+
+      {/* Quick Actions Section (remains similar) */}
       <div>
         <h2 className="text-2xl font-semibold tracking-tight mb-4">Quick Actions</h2>
-        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <Link href="/superadmin/schools" passHref>
-            <Card className="hover:border-primary transition-colors h-full flex flex-col">
+            <Card className="hover:border-primary transition-colors h-full flex flex-col group">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <School className="h-6 w-6 text-primary" />
-                  Manage Schools
+                <CardTitle className="flex items-center gap-2 text-xl group-hover:text-primary transition-colors">
+                  <School className="h-6 w-6" />
+                  Manage All Schools
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-grow">
@@ -118,40 +173,7 @@ export default async function SuperAdminDashboardPage() {
               </CardContent>
             </Card>
           </Link>
-
-          {/* Example for a future "System Settings" quick action */}
-          {/* <Link href="/superadmin/settings" passHref>
-            <Card className="hover:border-primary transition-colors h-full flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Settings className="h-6 w-6 text-primary" />
-                  System Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground">
-                  Configure global parameters, integrations, and platform defaults.
-                </p>
-              </CardContent>
-            </Card>
-          </Link> */}
-
-          {/* Example for a future "User Management" quick action */}
-          {/* <Link href="/superadmin/users" passHref>
-            <Card className="hover:border-primary transition-colors h-full flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Users className="h-6 w-6 text-primary" />
-                  User Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground">
-                  Oversee all user accounts, roles, and permissions across the platform.
-                </p>
-              </CardContent>
-            </Card>
-          </Link> */}
+          {/* Add more quick action cards here */}
         </div>
       </div>
     </>
