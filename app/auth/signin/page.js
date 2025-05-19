@@ -1,48 +1,64 @@
 // File: app/auth/signin/page.jsx
 "use client";
 
-import SignInForm from "@/components/auth/SignInForm"; // Adjust path if needed
+import SignInForm from "@/components/auth/SignInForm";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react"; // Import Suspense
+import { useEffect, Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
-// This new component will contain the logic that uses client-side hooks
+// This is the content that relies on client-side hooks
 function SignInPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams(); // useSearchParams is now inside this Suspense-wrapped component
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (status === "authenticated") {
       const callbackUrl = searchParams.get("callbackUrl") || "/";
-      router.replace(callbackUrl); // Use replace to avoid adding signin page to history
+      router.replace(callbackUrl);
     }
-  }, [status, router, searchParams, session]); // Added session to dependency array
+  }, [status, router, searchParams, session]);
 
   if (status === "loading" || status === "authenticated") {
+    // Show a more structured skeleton while session is loading or redirecting
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading session information...</p> {/* Or a spinner component */}
+      <div className="flex items-center justify-center min-h-screen bg-muted/40">
+        <div className="w-full max-w-sm p-8 space-y-6">
+          <Skeleton className="h-8 w-1/2 mx-auto" /> {/* For title */}
+          <Skeleton className="h-6 w-3/4 mx-auto" /> {/* For description */}
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" /> {/* For email input */}
+            <Skeleton className="h-10 w-full" /> {/* For password input */}
+            <Skeleton className="h-10 w-full" /> {/* For button */}
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Only render the form if not authenticated and not loading
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40">
-      <SignInForm /> {/* SignInForm also uses useSearchParams, and will benefit from this Suspense boundary */}
+      <SignInForm />
     </div>
   );
 }
 
-
+// Main page component with Suspense boundary
 export default function SignInPage() {
-  // The SignInPage itself no longer directly calls useSearchParams or useSession
-  // It just sets up the Suspense boundary.
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading page...</p> {/* Fallback UI for the entire page content */}
+      // Fallback for the entire Suspense boundary (initial page load)
+      <div className="flex items-center justify-center min-h-screen bg-muted/40">
+        <div className="w-full max-w-sm p-8 space-y-6">
+          <Skeleton className="h-8 w-1/2 mx-auto" />
+          <Skeleton className="h-6 w-3/4 mx-auto" />
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
       </div>
     }>
       <SignInPageContent />

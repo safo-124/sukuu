@@ -7,10 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signIn, getCsrfToken } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner"; // Import toast from sonner
+import { Loader2 } from "lucide-react"; // For loading spinner in button
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -19,18 +20,26 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"; // Added CardFooter
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  // CardFooter, // We can add this later if needed
+} from "@/components/ui/card";
+import Image from 'next/image'; // For a logo (optional)
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(1, { message: "Password is required." }),
-  // csrfToken: z.string().min(1, { message: "CSRF token is required." }), // Handled differently
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(1, { message: "Password cannot be empty." }),
 });
 
 export default function SignInForm() {
-  const [error, setError] = useState("");
+  // No direct error state needed in the component, toast will handle it.
+  // const [error, setError] = useState(""); 
   const [loading, setLoading] = useState(false);
-  const [csrfToken, setCsrfToken] = useState("");
+  const [csrfToken, setCsrfToken] = useState(""); // Still needed for potential direct POST, though signIn() handles it
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -39,92 +48,91 @@ export default function SignInForm() {
     defaultValues: {
       email: "",
       password: "",
-      // csrfToken: "", // CSRF token will be fetched
     },
   });
 
   useEffect(() => {
+    // Fetch CSRF token, good practice although signIn client call often manages this flow.
     const fetchCsrfToken = async () => {
       try {
         const token = await getCsrfToken();
-        if (token) {
-          setCsrfToken(token);
-          // form.setValue("csrfToken", token); // Not setting in form, passed directly to signIn
-        } else {
-          setError("Could not retrieve CSRF token. Please refresh the page.");
-        }
+        if (token) setCsrfToken(token);
       } catch (e) {
         console.error("Error fetching CSRF token:", e);
-        setError("Error initializing form. Please refresh the page.");
+        toast.error("Security token error. Please refresh.");
       }
     };
     fetchCsrfToken();
-  }, []); // Removed form from dependencies
+  }, []);
 
   const onSubmit = async (values) => {
     setLoading(true);
-    setError("");
+    // setError(""); // Replaced by toast
 
-    if (!csrfToken) {
-        setError("CSRF token is missing. Please refresh and try again.");
+    // A basic check for CSRF token, though typically handled by signIn flow
+    if (!csrfToken && process.env.NODE_ENV === 'production') { // More critical in prod
+        toast.error("Security validation failed. Please refresh and try again.");
         setLoading(false);
         return;
     }
 
     try {
       const result = await signIn("credentials", {
-        redirect: false, // Important: handle redirect manually
+        redirect: false,
         email: values.email,
         password: values.password,
-        // csrfToken: values.csrfToken, // This is needed for credentials provider POST
-        // No need to pass csrfToken in the body if it's automatically handled by NextAuth for POSTs
-        // However, for robust custom forms, ensuring it's available or explicitly passed can be good.
-        // For signIn, it's usually handled via a hidden input or if the form POSTs to /api/auth/callback/credentials
-        // When calling signIn() client-side like this, NextAuth.js handles CSRF for its own flow.
+        // No need to explicitly pass csrfToken here, signIn client-side handles its required flow.
       });
 
       if (result?.error) {
-        setError(result.error === "CredentialsSignin" ? "Invalid email or password." : "An unknown error occurred.");
-        console.error("SignIn Error:", result.error);
+        toast.error(result.error === "CredentialsSignin" ? "Invalid email or password." : "Login failed. Please try again.");
+        console.error("SignIn Error:", result.error, result.status);
       } else if (result?.ok && !result.error) {
+        toast.success("Signed in successfully! Redirecting...");
         const callbackUrl = searchParams.get("callbackUrl") || "/";
-        router.push(callbackUrl); // Redirect after successful sign-in
-        router.refresh(); // Refresh server components
+        router.push(callbackUrl);
+        router.refresh(); // Important to re-fetch server components and update session state visibility
       } else {
-         setError("Login failed. Please try again.");
+        toast.error("Login failed. An unexpected error occurred.");
       }
     } catch (err) {
-      console.error("SignIn Exception:", err);
-      setError("An unexpected error occurred during sign in.");
+      console.error("SignIn System Exception:", err);
+      toast.error("A system error occurred during sign in. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl">Sign In</CardTitle>
+    <Card className="w-full max-w-md shadow-xl"> {/* Added shadow */}
+      <CardHeader className="space-y-1 text-center"> {/* Centered header */}
+        {/* Optional: Logo Placeholder */}
+        {/* <Image src="/logo-placeholder.svg" alt="Sukuu Logo" width={80} height={80} className="mx-auto mb-4" /> */}
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary mb-4">
+            <span className="text-3xl font-bold text-primary-foreground">S</span> {/* Simple initial logo */}
+        </div>
+        <CardTitle className="text-3xl font-bold tracking-tight">Welcome Back!</CardTitle>
         <CardDescription>
-          Enter your email below to login to your account.
+          Sign in to access your school management dashboard.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Hidden CSRF token field - NextAuth handles this for Credentials provider automatically
-                if the form submission is a POST to the right endpoint. When using signIn client-side,
-                it's part of the managed flow. If issues arise, this might be needed.
-            <input name="csrfToken" type="hidden" defaultValue={csrfToken} />
-            */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"> {/* Increased space */}
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel className="text-sm font-medium">Email Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="m@example.com" {...field} type="email" disabled={loading} />
+                    <Input 
+                      placeholder="you@example.com" 
+                      {...field} 
+                      type="email" 
+                      disabled={loading} 
+                      className="h-12 text-base px-4" // Larger input
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -135,27 +143,45 @@ export default function SignInForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-sm font-medium">Password</FormLabel>
+                    {/* <Link href="/auth/forgot-password" passHref>
+                      <a className="text-xs text-primary hover:underline">Forgot password?</a>
+                    </Link> */}
+                  </div>
                   <FormControl>
-                    <Input type="password" {...field} disabled={loading} />
+                    <Input 
+                      type="password" 
+                      {...field} 
+                      disabled={loading} 
+                      placeholder="••••••••"
+                      className="h-12 text-base px-4" // Larger input
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-             {error && (
-              <p className="text-sm font-medium text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing In..." : "Sign In"}
+            <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                "Sign In Securely"
+              )}
             </Button>
           </form>
         </Form>
       </CardContent>
-      {/* Optional CardFooter for links like "Forgot password?"
-      <CardFooter>
-        <p className="text-xs text-center text-gray-500">
-          No account? <a href="/auth/signup" className="font-semibold text-primary hover:underline">Sign up</a>
+      {/* Example of a CardFooter if you want to add a sign-up link later
+      <CardFooter className="flex flex-col items-center space-y-2 pt-6">
+        <p className="text-xs text-muted-foreground">
+          Don&apos;t have an account?{' '}
+          <Link href="/auth/register" className="font-medium text-primary hover:underline">
+            Register here
+          </Link>
         </p>
       </CardFooter>
       */}
