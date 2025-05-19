@@ -128,8 +128,9 @@ export default function SchoolsDataTable({ schools }) {
                          <Eye className="mr-2 h-4 w-4" /> View Details
                        </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                       <Link href={`/superadmin/schools/${school.id}/edit`} className="cursor-pointer"> {/* Placeholder edit link */}
+                   <DropdownMenuItem asChild>
+                       {/* UPDATED LINK: */}
+                       <Link href={`/superadmin/schools/${school.id}/edit`} className="flex items-center w-full cursor-pointer">
                          <Edit3 className="mr-2 h-4 w-4" /> Edit
                        </Link>
                     </DropdownMenuItem>
