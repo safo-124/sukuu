@@ -124,11 +124,11 @@ export default function SchoolsDataTable({ schools }) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem asChild>
-                       <Link href={`/superadmin/schools/${school.id}/view`} className="cursor-pointer"> {/* Placeholder view link */}
+                       {/* UPDATED LINK: */}
+                       <Link href={`/superadmin/schools/${school.id}/view`} className="flex items-center w-full cursor-pointer">
                          <Eye className="mr-2 h-4 w-4" /> View Details
                        </Link>
-                    </DropdownMenuItem>
-                   <DropdownMenuItem asChild>
+                    </DropdownMenuItem>                   <DropdownMenuItem asChild>
                        {/* UPDATED LINK: */}
                        <Link href={`/superadmin/schools/${school.id}/edit`} className="flex items-center w-full cursor-pointer">
                          <Edit3 className="mr-2 h-4 w-4" /> Edit
