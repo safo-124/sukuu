@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -51,7 +48,6 @@ enum TermPeriod {
   FIRST_TERM
   SECOND_TERM
   THIRD_TERM
-  // Or SEMESTER_1, SEMESTER_2
 }
 
 enum DayOfWeek {
@@ -113,11 +109,12 @@ model User {
   recordedAttendances StudentAttendance[] @relation("AttendanceRecordedBy")
   recordedPayments    Payment[]           @relation("PaymentRecordedBy")
 
-  // For tracking who assigned students to hostel/transport/meals
-  assignedHostelStays         StudentHostelStay[]         @relation("AssignedHostelStayBy")
-  assignedTransportSubs     StudentTransportSubscription[] @relation("AssignedTransportSubBy")
-  assignedMealSubs          StudentMealSubscription[]   @relation("AssignedMealSubBy")
+  assignedHostelStays     StudentHostelStay[]          @relation("AssignedHostelStayBy")
+  assignedTransportSubs StudentTransportSubscription[] @relation("AssignedTransportSubBy")
+  assignedMealSubs      StudentMealSubscription[]    @relation("AssignedMealSubBy")
 
+  assessmentsCreated Assessment[]  @relation("AssessmentsCreatedBy")
+  marksRecorded      StudentMark[] @relation("MarksRecordedBy")
 
   @@index([email])
 }
@@ -195,8 +192,8 @@ model School {
   logoUrl             String?
   currentAcademicYear String?
   currentTerm         TermPeriod?
-  currency            String     @default("GHS") // Default for Ghana
-  timezone            String     @default("Africa/Accra") // Default for Ghana
+  currency            String     @default("GHS")
+  timezone            String     @default("Africa/Accra")
   isActive            Boolean    @default(true)
 
   createdBySuperAdminId String?
@@ -216,11 +213,10 @@ model School {
   timetableSlots     TimetableSlot[]
   announcements      SchoolAnnouncement[]
   classAnnouncements ClassAnnouncement[]
-
-  // New Modules
   hostels            Hostel[]
   transportRoutes    TransportRoute[]
   mealPlans          MealPlan[]
+  assessments        Assessment[]
 }
 
 model SchoolAdmin {
@@ -265,19 +261,17 @@ model Teacher {
   school            School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   schoolId          String
   teacherIdNumber   String?
-  dateOfJoining     DateTime?
+  dateOfJoining     DateTime? @db.Date
   qualifications    String?   @db.Text
   specialization    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  classTeacherOf              Class[]             @relation("ClassHomeroomTeacher")
-  timetableSlots              TimetableSlot[]
-  gradesGiven                 StudentGrade[]      @relation("GradesByTeacher")
-  assignmentsCreated          Assignment[]        @relation("AssignmentsByTeacher")
-  createdClassAnnouncements   ClassAnnouncement[] @relation("ClassAnnouncementByTeacher")
-  hostelWardenships           Hostel[]            @relation("HostelWarden")
+  classTeacherOf            Class[]             @relation("ClassHomeroomTeacher")
+  timetableSlots            TimetableSlot[]
+  createdClassAnnouncements ClassAnnouncement[] @relation("ClassAnnouncementByTeacher")
+  hostelWardenships         Hostel[]            @relation("HostelWarden")
 
   @@unique([userId, schoolId])
   @@unique([schoolId, teacherIdNumber])
@@ -297,7 +291,7 @@ model Student {
   dateOfBirth           DateTime  @db.Date
   gender                Gender
   enrollmentDate        DateTime  @db.Date
-  profilePictureUrl     String?
+  profilePictureUrl     String?   @db.Text
   address               String?   @db.Text
   city                  String?
   stateOrRegion         String?
@@ -319,7 +313,9 @@ model Student {
   parents                StudentParentLink[]
   enrollments            StudentClassEnrollment[]
   attendances            StudentAttendance[]
-  grades                 StudentGrade[]
+  marks                  StudentMark[] // Replaces StudentGrade, linked to Assessment
+  // submittedAssignments   Assignment[] // REMOVED this line
+
   invoiceLineItems       InvoiceLineItem[]          @relation("StudentInvoiceLines")
   invoices               Invoice[]                  @relation("StudentInvoices")
   hostelStays            StudentHostelStay[]
@@ -327,7 +323,7 @@ model Student {
   mealSubscriptions      StudentMealSubscription[]
 
   @@unique([schoolId, studentIdNumber])
-  @@index([schoolId])
+  @@index([schoolId, isActive])
   @@index([currentClassId])
 }
 
@@ -376,8 +372,8 @@ model Class {
   studentsEnrolled StudentClassEnrollment[]
   currentStudents  Student[]                @relation("CurrentClassEnrollment")
   timetableSlots   TimetableSlot[]
-  assignments      Assignment[]
   announcements    ClassAnnouncement[]      @relation("AnnouncementsForClass")
+  assessments      Assessment[]
 
   @@unique([schoolId, name, section, academicYear])
   @@index([schoolId, academicYear])
@@ -390,14 +386,14 @@ model StudentClassEnrollment {
   class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   classId        String
   academicYear   String
-  enrollmentDate DateTime @default(now())
+  enrollmentDate DateTime @db.Date // Changed from @default(now()) to @db.Date
   isCurrent      Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([studentId, classId, academicYear])
-  @@index([studentId, academicYear])
+  @@index([studentId, academicYear, isCurrent])
   @@index([classId])
 }
 
@@ -413,8 +409,7 @@ model Subject {
   updatedAt DateTime @updatedAt
 
   timetableSlots TimetableSlot[]
-  assignments    Assignment[]
-  grades         StudentGrade[]
+  assessments    Assessment[]
 
   @@unique([schoolId, name])
   @@unique([schoolId, code])
@@ -441,8 +436,9 @@ model TimetableSlot {
 
   attendances StudentAttendance[] @relation("AttendanceForTimetableSlot")
 
-  @@unique([schoolId, classId, dayOfWeek, startTime, subjectId], name: "unique_class_slot")
-  @@unique([schoolId, teacherId, dayOfWeek, startTime], name: "unique_teacher_slot")
+  @@unique([schoolId, classId, dayOfWeek, startTime, subjectId], name: "unique_class_period_slot")
+  @@unique([schoolId, teacherId, dayOfWeek, startTime], name: "unique_teacher_period_slot")
+  @@unique([schoolId, room, dayOfWeek, startTime], name: "unique_room_period_slot")
   @@index([schoolId, classId, dayOfWeek])
   @@index([schoolId, teacherId, dayOfWeek])
 }
@@ -456,6 +452,7 @@ model StudentAttendance {
   remarks         String?          @db.Text
   academicYear    String
   term            TermPeriod
+  
   classId         String?
   subjectId       String?
   timetableSlotId String?
@@ -467,59 +464,64 @@ model StudentAttendance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([studentId, date, timetableSlotId, academicYear, term], name: "unique_student_attendance_per_slot")
-  @@unique([studentId, date, classId, subjectId, academicYear, term], name: "unique_student_attendance_per_class_subject")
+  @@unique([studentId, date, timetableSlotId], name: "unique_student_attendance_slot_date")
+  @@unique([studentId, date, classId, academicYear, term], name: "unique_student_daily_class_attendance")
   @@index([date, studentId])
   @@index([studentId, academicYear, term, status])
 }
 
-model Assignment {
-  id           String     @id @default(cuid())
-  schoolId     String
-  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  classId      String
-  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  subjectId    String
-  teacher      Teacher    @relation("AssignmentsByTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  teacherId    String
-  title        String
-  description  String?    @db.Text
-  maxPoints    Float?
-  dueDate      DateTime?
-  academicYear String
-  term         TermPeriod
+model Assessment {
+  id            String    @id @default(cuid())
+  schoolId      String
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  classId       String
+  class         Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  subjectId     String
+  subject       Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  grades       StudentGrade[]
+  academicYear  String
+  term          TermPeriod 
 
+  name          String
+  maxMarks      Float     
+  assessmentDate DateTime @db.Date 
+  description   String?   @db.Text
+
+  createdByUserId String?   
+  createdByUser User?     @relation("AssessmentsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  studentMarks  StudentMark[] 
+
+  @@unique([classId, subjectId, academicYear, term, name], name: "unique_assessment_definition")
+  @@index([schoolId, academicYear, term])
   @@index([classId, subjectId])
-  @@index([teacherId])
 }
 
-model StudentGrade {
-  id           String      @id @default(cuid())
-  student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId    String
-  subject      Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  subjectId    String
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  assignmentId String?
-  teacher      Teacher?    @relation("GradesByTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
-  teacherId    String?
-  grade        String
-  numericValue Float?
-  comments     String?     @db.Text
-  academicYear String
-  term         TermPeriod
-  dateRecorded DateTime    @default(now())
+model StudentMark {
+  id              String     @id @default(cuid())
+  assessmentId    String
+  assessment      Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  studentId       String
+  student         Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  marksObtained   Float      
+  gradeLetter     String?
+  remarks         String?    @db.Text
+  
+  recordedById    String?    
+  recordedByUser  User?      @relation("MarksRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
 
-  @@unique([studentId, subjectId, assignmentId, academicYear, term])
-  @@index([studentId, academicYear, term])
-  @@index([subjectId, academicYear, term])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId, assessmentId])
 }
 
 model FeeStructure {
@@ -540,8 +542,8 @@ model FeeStructure {
 
   invoiceLineItems InvoiceLineItem[]
 
-  @@unique([schoolId, name, category, academicYear, term])
-  @@index([schoolId, academicYear, category])
+  @@unique([schoolId, name, category, academicYear, term, frequency])
+  @@index([schoolId, academicYear, category, isActive])
 }
 
 model Invoice {
@@ -557,6 +559,7 @@ model Invoice {
   dueDate        DateTime      @db.Date
   totalAmount    Decimal       @db.Decimal(10, 2)
   paidAmount     Decimal       @default(0.00) @db.Decimal(10, 2)
+  balanceDue     Decimal       @db.Decimal(10, 2)
   status         PaymentStatus @default(PENDING)
   notes          String?       @db.Text
   academicYear   String
@@ -580,7 +583,7 @@ model InvoiceLineItem {
   invoiceId      String
   feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
   feeStructureId String?
-  student        Student       @relation("StudentInvoiceLines", fields: [studentId], references: [id], onDelete: Cascade)
+  student        Student       @relation("StudentInvoiceLines", fields: [studentId], references: [id], onDelete: Cascade) 
   studentId      String
   description    String
   quantity       Int           @default(1)
@@ -592,7 +595,7 @@ model InvoiceLineItem {
 
   @@index([invoiceId])
   @@index([feeStructureId])
-  @@index([studentId])
+  @@index([studentId]) 
 }
 
 model Payment {
@@ -612,7 +615,7 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   @@index([invoiceId])
-  @@index([reference]) // Corrected: Removed schoolId as it's not directly on this model
+  @@index([reference])
   @@index([paymentMethod])
   @@index([recordedById])
 }
@@ -633,7 +636,7 @@ model SchoolAnnouncement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([schoolId, publishDate])
+  @@index([schoolId, publishDate, isPublished])
 }
 
 model ClassAnnouncement {
@@ -652,12 +655,9 @@ model ClassAnnouncement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([classId, publishDate])
+  @@index([classId, publishDate, isPublished])
 }
 
-// --- NEW MODULES: HOSTEL, TRANSPORT, FEEDING ---
-
-// HOSTEL MANAGEMENT
 model Hostel {
   id                    String   @id @default(cuid())
   school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -674,24 +674,23 @@ model Hostel {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rooms           HostelRoom[]
-  studentHostelStays StudentHostelStay[]
-
+  rooms                HostelRoom[]
+  studentHostelStays   StudentHostelStay[]
 
   @@unique([schoolId, name])
   @@index([schoolId, isActive])
 }
 
 model HostelRoom {
-  id              String         @id @default(cuid())
-  hostel          Hostel         @relation(fields: [hostelId], references: [id], onDelete: Cascade)
-  hostelId        String
-  roomNumberOrName String
-  capacity        Int
-  currentOccupancy Int           @default(0)
-  roomType        HostelRoomType?
-  floorLevel      String?
-  isActive        Boolean        @default(true)
+  id                 String         @id @default(cuid())
+  hostel             Hostel         @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  hostelId           String
+  roomNumberOrName   String
+  capacity           Int
+  currentOccupancy   Int            @default(0)
+  roomType           HostelRoomType?
+  floorLevel         String?
+  isActive           Boolean        @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -721,7 +720,6 @@ model StudentHostelStay {
   assignedById          String?
   assignedBy            User?       @relation("AssignedHostelStayBy", fields: [assignedById], references: [id], onDelete: SetNull)
 
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -731,8 +729,6 @@ model StudentHostelStay {
   @@index([academicYear, term])
 }
 
-
-// TRANSPORTATION MANAGEMENT
 model TransportRoute {
   id                  String  @id @default(cuid())
   school              School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -781,7 +777,6 @@ model StudentTransportSubscription {
   @@index([academicYear, term])
 }
 
-// FEEDING / MEAL MANAGEMENT
 model MealPlan {
   id           String  @id @default(cuid())
   school       School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -816,7 +811,6 @@ model StudentMealSubscription {
 
   assignedById String?
   assignedBy   User?      @relation("AssignedMealSubBy", fields: [assignedById], references: [id], onDelete: SetNull)
-
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
