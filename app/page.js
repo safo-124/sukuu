@@ -4,13 +4,13 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton"; // For a nicer loading state
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Add console logs to see what's happening
+  // Console logs for debugging (can be removed once fixed)
   useEffect(() => {
     console.log("[HomePage] Session Status:", status);
     if (session) {
@@ -21,7 +21,7 @@ export default function HomePage() {
   useEffect(() => {
     if (status === "loading") {
       console.log("[HomePage] Effect: Session is loading. Waiting...");
-      return; // Wait until session status is resolved
+      return;
     }
 
     if (status === "unauthenticated") {
@@ -35,26 +35,23 @@ export default function HomePage() {
             console.log("[HomePage] Effect: Redirecting SUPER_ADMIN to /superadmin/dashboard.");
             router.replace("/superadmin/dashboard");
             break;
-          // Add cases for other roles here as you build them:
-          // case "SCHOOL_ADMIN":
-          //   router.replace("/schooladmin/dashboard"); // This will need schoolId context
-          //   break;
+          case "SCHOOL_ADMIN": // <<< ADD THIS CASE
+            console.log("[HomePage] Effect: Redirecting SCHOOL_ADMIN to /school-admin-portal.");
+            router.replace("/school-admin-portal"); // Placeholder for School Admin area
+            break;
+          // Add cases for "TEACHER", "PARENT", "STUDENT" later
           default:
             console.warn("[HomePage] Effect: Authenticated user with unhandled role. Redirecting to /auth/signin as fallback. Role:", session.user.role);
-            router.replace("/auth/signin"); // Or a generic authenticated page like /dashboard
+            router.replace("/auth/signin");
             break;
         }
       } else {
-        // This case should ideally not happen if your JWT/session callbacks are set up correctly
         console.error("[HomePage] Effect: Authenticated, but user role is missing in session. Redirecting to /auth/signin.");
         router.replace("/auth/signin");
       }
     }
   }, [status, session, router]);
 
-
-  // Show a loading skeleton while the session status is being determined
-  // or while the redirect initiated by useEffect is in progress.
   if (status === "loading") {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
@@ -73,8 +70,6 @@ export default function HomePage() {
     );
   }
 
-  // If not loading, useEffect should be handling redirects.
-  // This UI is a fallback if redirects are slow or if there's an unexpected state.
   return (
      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
         <div className="space-y-6 w-full max-w-lg text-center">

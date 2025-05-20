@@ -10,9 +10,10 @@ import {
   Edit3,
   Trash2,
   Eye,
-  School as SchoolIcon, // Renamed to avoid conflict if 'School' type is imported
+  School as SchoolIcon, // Aliased to avoid conflict
   PlusCircle,
-  Loader2, // For loading state in button
+  Loader2,
+  Users as UsersIcon, // Import Users and alias it
 } from "lucide-react";
 
 import {
@@ -42,14 +43,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // We'll trigger programmatically
 } from "@/components/ui/alert-dialog";
 
 // Robust helper to format date
 const formatDate = (dateString, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
   if (!dateString) return "N/A";
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) { // Check if the date object is valid
+  // Check if the date object is valid
+  if (isNaN(date.getTime())) {
     console.warn("Invalid date string passed to formatDate:", dateString);
     return "Invalid Date";
   }
@@ -62,7 +63,7 @@ export default function SchoolsDataTable({ schools }) {
   const [schoolToDelete, setSchoolToDelete] = useState(null); // Stores { id: string, name: string }
 
   const openDeleteDialog = (school) => {
-    setSchoolToDelete(school); // This will set the school object { id, name } and trigger the AlertDialog
+    setSchoolToDelete(school);
   };
 
   const handleConfirmDelete = async () => {
@@ -76,7 +77,14 @@ export default function SchoolsDataTable({ schools }) {
         method: 'DELETE',
       });
 
-      const result = await response.json(); // Assuming API always returns JSON, even for errors
+      // Check if response is JSON, otherwise handle as text
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
+      } else {
+        result = { error: await response.text() || "An unknown error occurred during deletion." }; // Fallback for non-JSON response
+      }
 
       if (!response.ok) {
         toast.error(result.error || `Failed to delete "${schoolToDelete.name}".`, { id: toastId });
@@ -96,7 +104,7 @@ export default function SchoolsDataTable({ schools }) {
   if (!schools || schools.length === 0) {
     return (
       <div className="text-center py-10 border rounded-lg bg-card shadow">
-        <SchoolIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        <SchoolIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4" /> {/* Using aliased SchoolIcon */}
         <h3 className="mt-2 text-xl font-semibold text-foreground">No Schools Found</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           It looks like no schools have been registered on the platform yet.
@@ -115,50 +123,50 @@ export default function SchoolsDataTable({ schools }) {
 
   return (
     <>
-      <div className="border rounded-lg shadow-sm overflow-x-auto"> {/* Added overflow-x-auto for smaller screens */}
+      <div className="border rounded-lg shadow-sm overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/50 dark:bg-muted/30">
             <TableRow>
-              <TableHead className="min-w-[200px] sm:min-w-[250px]">School Name</TableHead>
-              <TableHead className="min-w-[200px] sm:min-w-[250px]">Email</TableHead>
-              <TableHead className="min-w-[120px]">City</TableHead>
-              <TableHead className="min-w-[120px]">Country</TableHead>
-              <TableHead className="hidden md:table-cell min-w-[150px]">Academic Year</TableHead>
-              <TableHead className="hidden sm:table-cell min-w-[100px]">Status</TableHead>
-              <TableHead className="hidden lg:table-cell min-w-[150px]">Registered On</TableHead> {/* Changed from Created At */}
-              <TableHead className="text-right min-w-[100px]">Actions</TableHead>
+              <TableHead className="min-w-[200px] sm:min-w-[250px] py-3 px-4">School Name</TableHead>
+              <TableHead className="min-w-[200px] sm:min-w-[250px] py-3 px-4">Email</TableHead>
+              <TableHead className="min-w-[120px] py-3 px-4">City</TableHead>
+              <TableHead className="min-w-[120px] py-3 px-4">Country</TableHead>
+              <TableHead className="hidden md:table-cell min-w-[150px] py-3 px-4">Academic Year</TableHead>
+              <TableHead className="hidden sm:table-cell min-w-[100px] py-3 px-4">Status</TableHead>
+              <TableHead className="hidden lg:table-cell min-w-[150px] py-3 px-4">Registered On</TableHead>
+              <TableHead className="text-right min-w-[100px] py-3 px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {schools.map((school) => (
               <TableRow key={school.id} className="hover:bg-muted/20 dark:hover:bg-muted/10">
-                <TableCell className="font-medium text-foreground">{school.name}</TableCell>
-                <TableCell className="text-muted-foreground">{school.schoolEmail}</TableCell>
-                <TableCell className="text-muted-foreground">{school.city || "N/A"}</TableCell>
-                <TableCell className="text-muted-foreground">{school.country || "N/A"}</TableCell>
-                <TableCell className="hidden md:table-cell text-muted-foreground">{school.currentAcademicYear}</TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  <Badge 
-                    variant={school.isActive ? "default" : "outline"} // Using outline for inactive for better theme adaptability
+                <TableCell className="font-medium text-foreground py-3 px-4">{school.name}</TableCell>
+                <TableCell className="text-muted-foreground py-3 px-4">{school.schoolEmail}</TableCell>
+                <TableCell className="text-muted-foreground py-3 px-4">{school.city || "N/A"}</TableCell>
+                <TableCell className="text-muted-foreground py-3 px-4">{school.country || "N/A"}</TableCell>
+                <TableCell className="hidden md:table-cell text-muted-foreground py-3 px-4">{school.currentAcademicYear}</TableCell>
+                <TableCell className="hidden sm:table-cell py-3 px-4">
+                  <Badge
+                    variant={school.isActive ? "default" : "outline"}
                     className={
-                      school.isActive 
-                        ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400 dark:border-green-400/40 dark:bg-green-400/10" 
-                        : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400 dark:border-red-400/40 dark:bg-red-400/10"
+                      school.isActive
+                        ? "border-green-600/50 bg-green-500/10 text-green-700 dark:text-green-400 dark:border-green-500/40 dark:bg-green-500/10"
+                        : "border-red-600/50 bg-red-500/10 text-red-700 dark:text-red-400 dark:border-red-500/40 dark:bg-red-500/10"
                     }
                   >
                     {school.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell className="hidden lg:table-cell text-muted-foreground">{formatDate(school.createdAt)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="hidden lg:table-cell text-muted-foreground py-3 px-4">{formatDate(school.createdAt)}</TableCell>
+                <TableCell className="text-right py-3 px-4">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle school menu</span>
+                        <span className="sr-only">Toggle school menu for {school.name}</span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48"> {/* Added width */}
+                    <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
@@ -173,14 +181,14 @@ export default function SchoolsDataTable({ schools }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                          <Link href={`/superadmin/schools/${school.id}/admins`} className="flex items-center w-full cursor-pointer">
-                           <Users className="mr-2 h-4 w-4" /> Manage Admins
+                           <UsersIcon className="mr-2 h-4 w-4" /> Manage Admins {/* Using aliased UsersIcon */}
                          </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer flex items-center w-full"
                         onClick={() => openDeleteDialog({ id: school.id, name: school.name })}
-                        disabled={isDeleting} // Disable while any delete is in progress
+                        disabled={isDeleting && schoolToDelete?.id === school.id} // Disable only for the school being deleted
                       >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete School
                       </DropdownMenuItem>
@@ -194,14 +202,14 @@ export default function SchoolsDataTable({ schools }) {
       </div>
 
       {/* Alert Dialog for Delete Confirmation */}
-      {schoolToDelete && ( // Conditionally render AlertDialog to ensure content is available when open
+      {schoolToDelete && (
         <AlertDialog open={!!schoolToDelete} onOpenChange={(open) => { if (!open) setSchoolToDelete(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the school
-                <strong className="px-1 font-semibold text-foreground">{schoolToDelete?.name}</strong>. 
+                <strong className="px-1 font-semibold text-foreground">{schoolToDelete?.name}</strong>.
                 All associated data (students, classes, staff, financial records, etc., depending on your database cascade rules) might also be permanently removed.
               </AlertDialogDescription>
             </AlertDialogHeader>

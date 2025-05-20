@@ -1,102 +1,114 @@
 // File: middleware.js
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getToken } from 'next-auth/jwt'; // Helper to get JWT token on the server
+
+// Ensure AUTH_SECRET is correctly set in your .env.local or Vercel environment variables
+const JWT_SECRET = process.env.AUTH_SECRET;
 
 export async function middleware(req) {
   const { pathname, origin, searchParams } = req.nextUrl;
 
-  // Get the session token using the JWT strategy
-  // Ensure AUTH_SECRET is correctly set in your .env.local
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  // Get the session token
+  const token = await getToken({ req, secret: JWT_SECRET });
   const isAuthenticated = !!token;
-  const userRole = token?.role;
+  const userRole = token?.role; // Role from your JWT callback (e.g., SUPER_ADMIN, SCHOOL_ADMIN)
 
-  // --- Define protected path prefixes and their required roles ---
-  const protectedRoutes = {
-    '/superadmin': ['SUPER_ADMIN'],
-    // For dynamic paths, we'll use startsWith and then can refine access at page/API level
-    // For example, /:schoolId/schooladmin will be caught by '/schooladmin' if structured like that,
-    // or we can use more specific matching.
-    // Let's assume your portal paths are like:
-    // /superadmin/...
-    // /portal/[schoolId]/schooladmin/...
-    // /portal/[schoolId]/teacher/...
-    // /portal/[schoolId]/parent/...
-    // If so, we can check for these prefixes.
+  // Construct the full callback URL to preserve query parameters
+  const callbackUrlPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const encodedCallbackUrl = encodeURIComponent(callbackUrlPath);
+  const signInUrl = `${origin}/auth/signin?callbackUrl=${encodedCallbackUrl}`;
+  const unauthorizedUrl = `${origin}/unauthorized`; // Ensure you have an /unauthorized page
 
-    // If your school-specific portals are directly under /:schoolId/, e.g., /school-xyz/admin
-    // that requires more complex matching.
-    // For the structure app/(portals)/[schoolId]/schooladmin, the URL will be /SCHOOL_ID_VALUE/schooladmin
-    // We can use a regex for that or a general check.
-  };
-
-  // --- Prevent authenticated users from accessing /auth/signin ---
+  // 1. Redirect authenticated users away from /auth/signin
   if (pathname.startsWith('/auth/signin') && isAuthenticated) {
-    // Redirect to a default page based on role if already logged in
+    let redirectTarget = '/'; // Default redirect for authenticated users
     if (userRole === 'SUPER_ADMIN') {
-      return NextResponse.redirect(`${origin}/superadmin/dashboard`);
+      redirectTarget = '/superadmin/dashboard';
+    } else if (userRole === 'SCHOOL_ADMIN') {
+      redirectTarget = '/school-admin-portal'; // Or their specific school dashboard if logic exists
     }
-    // Add other role-based redirects here if needed
-    return NextResponse.redirect(`${origin}/`); // Default redirect for other authenticated users
+    // Add other role-based redirects here:
+    // else if (userRole === 'TEACHER') { redirectTarget = '/teacher-portal'; }
+    // else if (userRole === 'PARENT') { redirectTarget = '/parent-portal'; }
+    // else if (userRole === 'STUDENT') { redirectTarget = '/student-portal'; }
+    return NextResponse.redirect(new URL(redirectTarget, origin));
   }
 
-
-  // --- Super Admin Route Protection ---
+  // 2. Protect /superadmin routes
   if (pathname.startsWith('/superadmin')) {
     if (!isAuthenticated) {
-      const callbackUrl = `${origin}${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      return NextResponse.redirect(`${origin}/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      return NextResponse.redirect(signInUrl);
     }
     if (userRole !== 'SUPER_ADMIN') {
-      console.warn(`[Middleware] Unauthorized access attempt to ${pathname} by user with role ${userRole}`);
-      return NextResponse.redirect(`${origin}/unauthorized`); // Or your custom unauthorized page
+      console.warn(`[Middleware] Unauthorized access attempt to Super Admin route ${pathname} by user role: ${userRole}`);
+      return NextResponse.redirect(unauthorizedUrl);
     }
   }
 
-  // --- School-Specific Portal Protection (Example Structure: /[schoolId]/<role_portal>) ---
-  // This regex matches paths like /any-school-id-string/schooladmin/...
-  const schoolSpecificPortalRegex = /^\/([a-zA-Z0-9_-]+)\/(schooladmin|teacher|parent|student)/;
+  // 3. Protect generic /school-admin-portal (if you have one that's not schoolId-specific)
+  if (pathname.startsWith('/school-admin-portal')) {
+    if (!isAuthenticated) {
+      return NextResponse.redirect(signInUrl);
+    }
+    // Allow SUPER_ADMIN to also access for oversight/testing
+    if (userRole !== 'SCHOOL_ADMIN' && userRole !== 'SUPER_ADMIN') {
+      console.warn(`[Middleware] Unauthorized access attempt to School Admin Portal ${pathname} by user role: ${userRole}`);
+      return NextResponse.redirect(unauthorizedUrl);
+    }
+  }
+
+  // 4. Protect school-specific dynamic routes (e.g., /<school_id>/schooladmin/*, /<school_id>/teacher/*)
+  // This regex matches paths like: /some-cuid-or-slug/schooladmin/...
+  // It captures the schoolId (group 1) and the portalType (group 2: schooladmin, teacher, parent, student)
+  const schoolSpecificPortalRegex = /^\/([a-zA-Z0-9_-]+)\/(schooladmin|teacher|parent|student)(\/.*)?$/;
   const schoolSpecificMatch = pathname.match(schoolSpecificPortalRegex);
 
   if (schoolSpecificMatch) {
-    const portalType = schoolSpecificMatch[2]; // schooladmin, teacher, parent, student
+    // const schoolId = schoolSpecificMatch[1]; // Captured schoolId if needed for advanced checks (not used in this basic middleware)
+    const portalType = schoolSpecificMatch[2];
 
     if (!isAuthenticated) {
-      const callbackUrl = `${origin}${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      return NextResponse.redirect(`${origin}/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      return NextResponse.redirect(signInUrl);
     }
 
-    // At this point, the user is authenticated. Now check roles.
-    // More granular checks (e.g., if SchoolAdmin belongs to *this* schoolId)
-    // are typically done at the page/API level due to middleware's limitations in accessing DB easily.
-
-    if (portalType === 'schooladmin') {
-      if (userRole !== 'SCHOOL_ADMIN' && userRole !== 'SUPER_ADMIN') { // SuperAdmins might access school admin portals
-        console.warn(`[Middleware] Unauthorized access attempt to ${pathname} by user with role ${userRole}`);
-        return NextResponse.redirect(`${origin}/unauthorized`);
-      }
-    } else if (portalType === 'teacher') {
-      if (userRole !== 'TEACHER' && userRole !== 'SCHOOL_ADMIN' && userRole !== 'SUPER_ADMIN') {
-        console.warn(`[Middleware] Unauthorized access attempt to ${pathname} by user with role ${userRole}`);
-        return NextResponse.redirect(`${origin}/unauthorized`);
-      }
-    } else if (portalType === 'parent') {
-      if (userRole !== 'PARENT' && userRole !== 'TEACHER' && userRole !== 'SCHOOL_ADMIN' && userRole !== 'SUPER_ADMIN') { // Other roles might need parent view for specific contexts
-        console.warn(`[Middleware] Unauthorized access attempt to ${pathname} by user with role ${userRole}`);
-        return NextResponse.redirect(`${origin}/unauthorized`);
-      }
-    } else if (portalType === 'student') {
-        if (userRole !== 'STUDENT' && userRole !== 'PARENT' && userRole !== 'TEACHER' && userRole !== 'SCHOOL_ADMIN' && userRole !== 'SUPER_ADMIN') {
-            console.warn(`[Middleware] Unauthorized access attempt to ${pathname} by user with role ${userRole}`);
-            return NextResponse.redirect(`${origin}/unauthorized`);
+    // Basic role checks for these portals.
+    // Granular access (e.g., "is this user a SCHOOL_ADMIN of *this specific schoolId*?")
+    // should be handled at the page or API level due to the complexity of DB lookups in middleware.
+    let authorized = false;
+    switch (portalType) {
+      case 'schooladmin':
+        if (userRole === 'SCHOOL_ADMIN' || userRole === 'SUPER_ADMIN') {
+          authorized = true;
         }
+        break;
+      case 'teacher':
+        if (userRole === 'TEACHER' || userRole === 'SCHOOL_ADMIN' || userRole === 'SUPER_ADMIN') {
+          authorized = true;
+        }
+        break;
+      case 'parent':
+        // Parents should usually only access their own children's data,
+        // but other roles might need a generalized view. This is a broad check.
+        if (userRole === 'PARENT' || userRole === 'TEACHER' || userRole === 'SCHOOL_ADMIN' || userRole === 'SUPER_ADMIN') {
+          authorized = true;
+        }
+        break;
+      case 'student':
+        if (userRole === 'STUDENT' || userRole === 'PARENT' || userRole === 'TEACHER' || userRole === 'SCHOOL_ADMIN' || userRole === 'SUPER_ADMIN') {
+          authorized = true;
+        }
+        break;
+      default:
+        authorized = false; // Unknown portal type
     }
-    // If the role is allowed for the general portal type, allow access.
-    // Specific data access control (e.g. this teacher for this school) is for page/API.
+
+    if (!authorized) {
+      console.warn(`[Middleware] Unauthorized access attempt to ${portalType} portal at ${pathname} by user role: ${userRole}`);
+      return NextResponse.redirect(unauthorizedUrl);
+    }
   }
 
-
-  // If no protection rules matched, allow the request to proceed
+  // If no specific protection rule matched, allow the request to proceed
   return NextResponse.next();
 }
 
@@ -105,13 +117,13 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes, these should have their own auth checks)
+     * - api (API routes often have their own internal auth checks)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - images or any other public assets folder
-     * - public (if you have other assets directly in public)
+     * - Any other top-level public asset folders (e.g., /images/, /fonts/)
+     * - Public files by extension (e.g. .png, .svg)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|public|logo.svg).*)',
+    '/((?!api|_next/static|_next/image|.*\\..*|_next/webpack-hmr|favicon.ico|images|fonts|logo.svg|site.webmanifest).*)',
   ],
 };
