@@ -1,58 +1,110 @@
 // File: app/school-admin-portal/page.jsx
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import SignOutButton from "@/components/auth/SignOutButton"; // Assuming you have this
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import prisma from "@/lib/prisma";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, LogOut } from "lucide-react";
+import SignOutButton from "@/components/auth/SignOutButton"; // Re-using the SignOutButton
 
 export const metadata = {
     title: "School Admin Portal | Sukuu",
+    description: "Access your school management dashboard.",
 };
 
-export default async function SchoolAdminPortalPage() {
+async function getAdminSchoolAssignments(userId) {
+    if (!userId) return [];
+    try {
+        const assignments = await prisma.schoolAdmin.findMany({
+            where: { userId: userId },
+            include: {
+                school: { // Include details of the school
+                    select: {
+                        id: true,
+                        name: true,
+                        isActive: true, // Good to know if the school itself is active
+                    }
+                }
+            }
+        });
+        // Filter out assignments where the school might have been deactivated
+        return assignments.filter(assignment => assignment.school && assignment.school.isActive);
+    } catch (error) {
+        console.error("Error fetching school admin assignments:", error);
+        return []; // Return empty on error
+    }
+}
+
+export default async function SchoolAdminPortalEntryPage() {
     const session = await getServerSession(authOptions);
 
-    if (!session || (session.user.role !== "SCHOOL_ADMIN" && session.user.role !== "SUPER_ADMIN" /* Super admin might access for testing */) ) {
+    if (!session || !session.user) {
         redirect("/auth/signin?callbackUrl=/school-admin-portal");
     }
 
-    // Later, this page would fetch the school(s) this admin is associated with
-    // const schools = await getAdminSchools(session.user.id);
+    // Allow SUPER_ADMIN to access for testing, but their primary dashboard is elsewhere
+    if (session.user.role !== "SCHOOL_ADMIN" && session.user.role !== "SUPER_ADMIN") {
+        redirect("/unauthorized"); // Or redirect to their appropriate portal
+    }
+    
+    // If a SUPER_ADMIN lands here, maybe redirect them to their own dashboard
+    if (session.user.role === "SUPER_ADMIN") {
+        redirect("/superadmin/dashboard");
+    }
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-muted/40">
-            <div className="w-full max-w-2xl text-center">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary mb-8">
-                    <span className="text-4xl font-bold text-primary-foreground">SA</span>
-                </div>
-                <h1 className="text-4xl font-bold tracking-tight text-foreground mb-4">
-                    School Admin Portal
-                </h1>
-                <p className="text-xl text-muted-foreground mb-8">
-                    Welcome, {session.user.firstName || "Administrator"}! This area is under construction.
-                </p>
-                <p className="mb-4">
-                    Your school-specific dashboard and management tools will be available here soon.
-                </p>
-                
-                {/* Placeholder: In a real scenario, you'd list schools or go to a specific school dashboard */}
-                {/* {schools && schools.length > 0 ? (
-                    <div className="space-y-2">
-                        <h2 className="text-lg font-semibold">Your Schools:</h2>
-                        {schools.map(school => <p key={school.id}>{school.name}</p>)}
-                    </div>
-                ) : (
-                    <p>You are not yet assigned to any school.</p>
-                )} */}
+    const assignments = await getAdminSchoolAssignments(session.user.id);
 
-                <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-                    <Link href="/" passHref>
-                        <Button variant="outline" size="lg">Go to Homepage (Redirects)</Button>
-                    </Link>
-                    <SignOutButton className="w-full sm:w-auto h-11 px-8 text-base" />
-                </div>
+    if (assignments.length === 0) {
+        // This School Admin is not assigned to any active school
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4 md:p-6">
+                <Card className="w-full max-w-lg text-center shadow-lg">
+                    <CardHeader>
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mb-4">
+                            <AlertTriangle className="h-10 w-10 text-destructive" />
+                        </div>
+                        <CardTitle className="text-2xl">No School Assignment</CardTitle>
+                        <CardDescription>
+                            You are not currently assigned as an administrator to any active school.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-muted-foreground">
+                            Please contact the Super Administrator if you believe this is an error
+                            or to request assignment to a school.
+                        </p>
+                        <div className="mt-6">
+                           <SignOutButton variant="outline" />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
+        );
+    }
+
+    if (assignments.length === 1) {
+        // If admin to only one school, redirect to that school's admin dashboard
+        const schoolId = assignments[0].school.id;
+        redirect(`/${schoolId}/schooladmin/dashboard`);
+    }
+
+    // If admin to multiple schools (future enhancement: show a selection list)
+    // For now, redirect to the first assigned school's dashboard
+    // This part will need a proper UI if true multi-school adminship is common.
+    if (assignments.length > 1) {
+        console.log(`School Admin ${session.user.email} is assigned to multiple schools. Redirecting to the first one.`);
+        const schoolId = assignments[0].school.id;
+        // In a real multi-school scenario, you'd render a list here:
+        // return <SchoolSelectionList schools={assignments.map(a => a.school)} />;
+        redirect(`/${schoolId}/schooladmin/dashboard`);
+    }
+
+    // Fallback, should not be reached if logic above is correct
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <p>Processing your school assignment...</p>
         </div>
     );
 }
