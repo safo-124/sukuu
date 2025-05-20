@@ -1,7 +1,8 @@
+// File: app/(portals)/[schoolId]/schooladmin/academics/page.jsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
-import { BookCopy, ListOrdered, Tag, GraduationCap, LibraryBig, CalendarDays } from "lucide-react"; // Added LibraryBig
+import { BookCopy, ListOrdered, Tag, GraduationCap, CalendarDays as SessionsIcon, LibraryBig } from "lucide-react"; // Ensured all icons, renamed CalendarDays
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
@@ -11,10 +12,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// Helper function (can be shared or kept local if only used here)
 async function getSchoolName(schoolId) {
   try {
     const school = await prisma.school.findUnique({
@@ -24,13 +25,12 @@ async function getSchoolName(schoolId) {
     return school?.name;
   } catch (error) {
     console.error("Failed to fetch school name for academics page:", error);
-    return null;
+    return "Selected School"; // Fallback name
   }
 }
 
 export async function generateMetadata({ params }) {
   const schoolName = await getSchoolName(params.schoolId);
-  if (!schoolName) return { title: "Academics | Sukuu" };
   return {
     title: `Academics - ${schoolName} | Sukuu`,
     description: `Manage academic settings, classes, subjects, and more for ${schoolName}.`,
@@ -41,11 +41,9 @@ export default async function AcademicsHomePage({ params }) {
   const { schoolId } = params;
   const session = await getServerSession(authOptions);
 
-  // Authorization: Ensure user is logged in and is a School Admin for this school or a Super Admin
   if (!session || !session.user) {
     redirect(`/auth/signin?callbackUrl=/${schoolId}/schooladmin/academics`);
   }
-
   if (session.user.role !== 'SUPER_ADMIN') {
     const isAdminForSchool = await prisma.schoolAdmin.findFirst({
       where: { userId: session.user.id, schoolId: schoolId },
@@ -58,11 +56,10 @@ export default async function AcademicsHomePage({ params }) {
   const schoolName = await getSchoolName(schoolId);
 
   if (!schoolName && session.user.role !== 'SUPER_ADMIN') { 
-    // If school name isn't found and user isn't a super admin who might be exploring,
-    // it implies an issue or invalid schoolId for a regular school admin.
     redirect("/school-admin-portal?error=school_not_found");
   }
 
+  // All sections are now enabled (disabled property removed or set to false)
   const academicSections = [
     {
       title: "Manage Classes",
@@ -74,62 +71,61 @@ export default async function AcademicsHomePage({ params }) {
     {
       title: "Manage Subjects",
       description: "Create and manage subjects offered by the school across different levels.",
-      href: `/${schoolId}/schooladmin/academics/subjects`, // Placeholder link
+      href: `/${schoolId}/schooladmin/academics/subjects`,
       icon: Tag,
       cta: "Go to Subjects",
-      disabled: true, // Mark as disabled if not yet implemented
     },
     {
       title: "Academic Sessions",
       description: "Manage academic years, terms, or semesters for the school.",
-      href: `/${schoolId}/schooladmin/academics/sessions`, // Placeholder link
-      icon: CalendarDays, // You'll need to import CalendarDays from lucide-react
+      href: `/${schoolId}/schooladmin/academics/sessions`,
+      icon: SessionsIcon, // Using aliased CalendarDays
       cta: "Manage Sessions",
-      disabled: true,
     },
     {
       title: "Grading System",
       description: "Configure grading policies, report card templates, and examination settings.",
-      href: `/${schoolId}/schooladmin/academics/grading`, // Placeholder link
+      href: `/${schoolId}/schooladmin/academics/grading`,
       icon: GraduationCap,
       cta: "Configure Grading",
-      disabled: true,
     },
-    // Add more sections as needed, e.g., Curriculum, Promotions
   ];
-
 
   return (
     <div className="space-y-8">
+      {/* The main page title is now part of the AcademicsLayout */}
+      {/* If AcademicsLayout doesn't have a title, you can add one here:
       <div>
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-          Academics Management
+          Academics Overview
         </h1>
         <p className="text-lg text-muted-foreground mt-1">
-          Oversee academic structures and settings for <span className="font-semibold text-primary">{schoolName || "your school"}</span>.
+          Select an academic area to manage for <span className="font-semibold text-primary">{schoolName || "your school"}</span>.
         </p>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      */}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"> {/* Adjusted grid for potentially fewer items shown at once */}
         {academicSections.map((section) => (
           <Card key={section.title} className="flex flex-col hover:shadow-lg transition-shadow">
-            <CardHeader className="flex-row items-start gap-4 space-y-0 pb-4"> {/* Adjusted for icon layout */}
-              <div className="p-2 bg-primary/10 rounded-md flex items-center justify-center">
-                 <section.icon className="h-6 w-6 text-primary" />
+            <CardHeader className="flex-row items-start gap-4 space-y-0 pb-4">
+              <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-center shrink-0"> {/* Slightly larger icon container */}
+                 <section.icon className="h-7 w-7 text-primary" /> {/* Slightly larger icon */}
               </div>
               <div>
                 <CardTitle className="text-xl">{section.title}</CardTitle>
                 <CardDescription className="text-sm leading-relaxed mt-1">{section.description}</CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="mt-auto pt-0"> {/* mt-auto pushes button to bottom, pt-0 removes extra space */}
-              <Link href={section.disabled ? "#" : section.href} passHref>
-                <Button className="w-full" disabled={section.disabled}>
+            <CardContent className="flex-grow" /> {/* Spacer */}
+            <CardFooter>
+              <Link href={section.href} passHref className="w-full"> {/* Link is always active */}
+                <Button className="w-full">
                   {section.cta}
                 </Button>
               </Link>
-              {section.disabled && <p className="text-xs text-center text-muted-foreground mt-2">(Coming Soon)</p>}
-            </CardContent>
+            </CardFooter>
+            {/* No "Coming Soon" message needed as all are enabled */}
           </Card>
         ))}
       </div>
