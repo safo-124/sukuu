@@ -93,7 +93,7 @@ model User {
   firstName      String
   lastName       String
   phoneNumber    String?  @unique
-  profilePicture String?
+  profilePicture String?  @db.Text
   isActive       Boolean  @default(true)
   role           UserRole
 
