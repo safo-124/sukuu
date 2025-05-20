@@ -10,56 +10,52 @@ export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // Add console logs to see what's happening
   useEffect(() => {
-    // Don't do anything while session is loading
+    console.log("[HomePage] Session Status:", status);
+    if (session) {
+      console.log("[HomePage] Session Data:", session);
+    }
+  }, [status, session]);
+
+  useEffect(() => {
     if (status === "loading") {
-      return;
+      console.log("[HomePage] Effect: Session is loading. Waiting...");
+      return; // Wait until session status is resolved
     }
 
     if (status === "unauthenticated") {
-      // User is not authenticated, redirect to sign-in page
+      console.log("[HomePage] Effect: User is unauthenticated. Redirecting to /auth/signin.");
       router.replace("/auth/signin");
     } else if (status === "authenticated") {
-      // User is authenticated, redirect based on role
+      console.log("[HomePage] Effect: User is authenticated. Role:", session?.user?.role);
       if (session?.user?.role) {
         switch (session.user.role) {
           case "SUPER_ADMIN":
+            console.log("[HomePage] Effect: Redirecting SUPER_ADMIN to /superadmin/dashboard.");
             router.replace("/superadmin/dashboard");
             break;
-          // Add cases for other roles as you build them:
+          // Add cases for other roles here as you build them:
           // case "SCHOOL_ADMIN":
-          //   // School admin dashboard might need a schoolId, handle that logic
-          //   router.replace("/select-school"); // Or a default school admin page
-          //   break;
-          // case "TEACHER":
-          //   router.replace("/teacher/dashboard");
-          //   break;
-          // case "PARENT":
-          //   router.replace("/parent/dashboard");
+          //   router.replace("/schooladmin/dashboard"); // This will need schoolId context
           //   break;
           default:
-            // Fallback for authenticated users with unhandled roles
-            // or if you want a generic authenticated landing spot
-            console.warn("Authenticated user with unhandled role or no specific redirect:", session.user.role);
-            router.replace("/auth/signin"); // Or a generic dashboard if you have one e.g. /dashboard
+            console.warn("[HomePage] Effect: Authenticated user with unhandled role. Redirecting to /auth/signin as fallback. Role:", session.user.role);
+            router.replace("/auth/signin"); // Or a generic authenticated page like /dashboard
             break;
         }
       } else {
-        // Authenticated but role is not defined, should not happen with our setup
-        console.error("Authenticated user session found, but role is missing.");
-        router.replace("/auth/signin"); // Fallback to sign-in
+        // This case should ideally not happen if your JWT/session callbacks are set up correctly
+        console.error("[HomePage] Effect: Authenticated, but user role is missing in session. Redirecting to /auth/signin.");
+        router.replace("/auth/signin");
       }
     }
   }, [status, session, router]);
 
-  // Display a loading UI while the session is loading or redirect is in progress
-  // This prevents a flash of content if there was any, and provides feedback.
-  // The conditions ensure this loading UI is shown only when appropriate for this page's logic.
-  const showLoading = status === "loading" || 
-                      (status === "unauthenticated" && (typeof window !== 'undefined' && window.location.pathname === '/')) ||
-                      (status === "authenticated" && (typeof window !== 'undefined' && window.location.pathname === '/'));
 
-  if (showLoading) {
+  // Show a loading skeleton while the session status is being determined
+  // or while the redirect initiated by useEffect is in progress.
+  if (status === "loading") {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
         <div className="space-y-6 w-full max-w-lg text-center">
@@ -77,11 +73,17 @@ export default function HomePage() {
     );
   }
 
-  // This content should ideally not be visible for long, as redirects will occur.
-  // It acts as a fallback during the very brief moment before a redirect JS might execute.
+  // If not loading, useEffect should be handling redirects.
+  // This UI is a fallback if redirects are slow or if there's an unexpected state.
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-muted-foreground">Loading your experience...</p>
-    </div>
+     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
+        <div className="space-y-6 w-full max-w-lg text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary mb-6">
+            <span className="text-3xl font-bold text-primary-foreground">S</span>
+          </div>
+           <p className="text-lg text-muted-foreground">Preparing your Sukuu experience...</p>
+        </div>
+        <p className="mt-10 text-sm text-muted-foreground animate-pulse">Please wait a moment...</p>
+      </div>
   );
 }
