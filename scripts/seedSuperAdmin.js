@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 async function main() {
   // --- IMPORTANT: Customize these values! ---
   const email = 'superadmin@sukuu.app'; // Choose a secure, real email if possible or a memorable one
-  const password = 'ChangeThisSuperStrongPassword123!'; // <<< CHANGE THIS TO A VERY STRONG PASSWORD
+  const password = 'kantanka'; // <<< CHANGE THIS TO A VERY STRONG PASSWORD
   const firstName = 'Sukuu';
   const lastName = 'SuperAdmin';
   // --- End of customization ---
