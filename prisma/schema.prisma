@@ -195,6 +195,7 @@ model School {
   currency            String     @default("GHS")
   timezone            String     @default("Africa/Accra")
   isActive            Boolean    @default(true)
+  
 
   createdBySuperAdminId String?
   createdBySuperAdmin   SuperAdmin? @relation("CreatedBySuperAdmin", fields: [createdBySuperAdminId], references: [id], onDelete: SetNull)
@@ -202,6 +203,7 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  gradeScales        GradeScale[]
   admins             SchoolAdmin[]
   teachers           Teacher[]
   students           Student[]
@@ -256,7 +258,7 @@ model Accountant {
 
 model Teacher {
   id                String    @id @default(cuid())
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId            String
   school            School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   schoolId          String
@@ -819,4 +821,40 @@ model StudentMealSubscription {
   @@index([studentId, isActive])
   @@index([mealPlanId, isActive])
   @@index([academicYear, term])
+}
+model GradeScale {
+  id            String    @id @default(cuid())
+  schoolId      String
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  name          String    // e.g., "Standard K-12 Scale", "Tertiary GPA Scale"
+  description   String?   @db.Text
+  isActive      Boolean   @default(false) // A school might have multiple scales, but only one active at a time, or one active per "level" (e.g. Primary, JHS, SHS) - this needs thought. For now, one active per school.
+
+  entries       GradeScaleEntry[] // The individual grade mappings
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([schoolId, name]) // Scale name unique within a school
+  @@index([schoolId, isActive])
+}
+
+model GradeScaleEntry {
+  id            String    @id @default(cuid())
+  gradeScaleId  String
+  gradeScale    GradeScale @relation(fields: [gradeScaleId], references: [id], onDelete: Cascade)
+
+  minPercentage Float     // Minimum percentage for this grade (inclusive)
+  maxPercentage Float     // Maximum percentage for this grade (inclusive)
+  gradeLetter   String    // e.g., "A+", "B", "Pass"
+  gradePoint    Float?    // Optional: e.g., 4.0, 3.5 (for GPA calculation)
+  remark        String?   // e.g., "Excellent", "Very Good", "Needs Improvement"
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Ensure no overlapping ranges within the same gradeScaleId
+  // This is complex to enforce directly with @@unique. Application logic must ensure this.
+  @@index([gradeScaleId])
 }

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
-import { GraduationCap, FileText, Settings, BarChart3, ChevronLeft, ListPlus } from "lucide-react";
+import { GraduationCap, FileText, Settings, BarChart3, ChevronLeft, ListPlus, Edit } from "lucide-react";
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
@@ -51,34 +51,33 @@ export default async function GradingOverviewPage({ params }) {
   const gradingSections = [
     {
       title: "Manage Assessments",
-      description: "Define and organize tests, exams, assignments, and other assessments.",
+      description: "Define tests, exams, assignments, and other evaluation criteria.",
       href: `/${schoolId}/schooladmin/academics/grading/assessments`,
       icon: ListPlus,
       cta: "Go to Assessments",
     },
     {
-      title: "Enter/View Marks",
-      description: "Input and review student marks for various assessments.",
-      href: `/${schoolId}/schooladmin/academics/grading/marks-entry`, // Placeholder
-      icon: FileText,
-      cta: "Manage Marks",
-      disabled: true,
+      title: "Enter & View Marks",
+      description: "Input and review student marks for various defined assessments.",
+      href: `/${schoolId}/schooladmin/academics/grading/assessments`, // Leads to assessments list first
+      icon: Edit,
+      cta: "Manage Student Marks",
     },
     {
-      title: "Generate Reports",
-      description: "Create and view academic reports, transcripts, and performance summaries.",
-      href: `/${schoolId}/schooladmin/academics/grading/reports`, // Placeholder
+      title: "Generate Academic Reports",
+      description: "Create and view student report cards, transcripts, and performance summaries.",
+      href: `/${schoolId}/schooladmin/academics/grading/reports`, 
       icon: BarChart3,
       cta: "View Reports",
-      disabled: true,
+      // disabled: false, // Now enabled
     },
     {
       title: "Grading Scales & Settings",
       description: "Configure grading systems, GPA calculations, and report card comments.",
-      href: `/${schoolId}/schooladmin/academics/grading/settings`, // Placeholder
+      href: `/${schoolId}/schooladmin/academics/grading/settings`, 
       icon: Settings,
       cta: "Configure Settings",
-      disabled: true,
+      // disabled: false, // Now enabled
     },
   ];
 
@@ -120,13 +119,13 @@ export default async function GradingOverviewPage({ params }) {
             </CardHeader>
             <CardContent className="flex-grow" /> {/* Spacer */}
             <CardFooter>
-              <Link href={section.disabled ? "#" : section.href} passHref className="w-full">
-                <Button className="w-full" disabled={section.disabled}>
+              <Link href={section.href} passHref className="w-full"> {/* Links are now active */}
+                <Button className="w-full" > {/* No more disabled prop */}
                   {section.cta}
                 </Button>
               </Link>
             </CardFooter>
-            {section.disabled && <p className="text-xs text-center text-muted-foreground pb-4 -mt-2">(Coming Soon)</p>}
+            {/* No more "Coming Soon" message */}
           </Card>
         ))}
       </div>

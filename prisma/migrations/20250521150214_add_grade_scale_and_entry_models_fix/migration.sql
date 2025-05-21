@@ -6,7 +6,7 @@ CREATE TABLE `User` (
     `firstName` VARCHAR(191) NOT NULL,
     `lastName` VARCHAR(191) NOT NULL,
     `phoneNumber` VARCHAR(191) NULL,
-    `profilePicture` VARCHAR(191) NULL,
+    `profilePicture` TEXT NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `role` ENUM('SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER', 'STUDENT', 'PARENT', 'ACCOUNTANT') NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -141,7 +141,7 @@ CREATE TABLE `Teacher` (
     `userId` VARCHAR(191) NOT NULL,
     `schoolId` VARCHAR(191) NOT NULL,
     `teacherIdNumber` VARCHAR(191) NULL,
-    `dateOfJoining` DATETIME(3) NULL,
+    `dateOfJoining` DATE NULL,
     `qualifications` TEXT NULL,
     `specialization` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -165,7 +165,7 @@ CREATE TABLE `Student` (
     `dateOfBirth` DATE NOT NULL,
     `gender` ENUM('MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY') NOT NULL,
     `enrollmentDate` DATE NOT NULL,
-    `profilePictureUrl` VARCHAR(191) NULL,
+    `profilePictureUrl` TEXT NULL,
     `address` TEXT NULL,
     `city` VARCHAR(191) NULL,
     `stateOrRegion` VARCHAR(191) NULL,
@@ -182,7 +182,7 @@ CREATE TABLE `Student` (
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `Student_userId_key`(`userId`),
-    INDEX `Student_schoolId_idx`(`schoolId`),
+    INDEX `Student_schoolId_isActive_idx`(`schoolId`, `isActive`),
     INDEX `Student_currentClassId_idx`(`currentClassId`),
     UNIQUE INDEX `Student_schoolId_studentIdNumber_key`(`schoolId`, `studentIdNumber`),
     PRIMARY KEY (`id`)
@@ -237,12 +237,12 @@ CREATE TABLE `StudentClassEnrollment` (
     `studentId` VARCHAR(191) NOT NULL,
     `classId` VARCHAR(191) NOT NULL,
     `academicYear` VARCHAR(191) NOT NULL,
-    `enrollmentDate` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `enrollmentDate` DATE NOT NULL,
     `isCurrent` BOOLEAN NOT NULL DEFAULT true,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `StudentClassEnrollment_studentId_academicYear_idx`(`studentId`, `academicYear`),
+    INDEX `StudentClassEnrollment_studentId_academicYear_isCurrent_idx`(`studentId`, `academicYear`, `isCurrent`),
     INDEX `StudentClassEnrollment_classId_idx`(`classId`),
     UNIQUE INDEX `StudentClassEnrollment_studentId_classId_academicYear_key`(`studentId`, `classId`, `academicYear`),
     PRIMARY KEY (`id`)
@@ -282,6 +282,7 @@ CREATE TABLE `TimetableSlot` (
     INDEX `TimetableSlot_schoolId_teacherId_dayOfWeek_idx`(`schoolId`, `teacherId`, `dayOfWeek`),
     UNIQUE INDEX `TimetableSlot_schoolId_classId_dayOfWeek_startTime_subjectId_key`(`schoolId`, `classId`, `dayOfWeek`, `startTime`, `subjectId`),
     UNIQUE INDEX `TimetableSlot_schoolId_teacherId_dayOfWeek_startTime_key`(`schoolId`, `teacherId`, `dayOfWeek`, `startTime`),
+    UNIQUE INDEX `TimetableSlot_schoolId_room_dayOfWeek_startTime_key`(`schoolId`, `room`, `dayOfWeek`, `startTime`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -303,51 +304,47 @@ CREATE TABLE `StudentAttendance` (
 
     INDEX `StudentAttendance_date_studentId_idx`(`date`, `studentId`),
     INDEX `StudentAttendance_studentId_academicYear_term_status_idx`(`studentId`, `academicYear`, `term`, `status`),
-    UNIQUE INDEX `StudentAttendance_studentId_date_timetableSlotId_academicYea_key`(`studentId`, `date`, `timetableSlotId`, `academicYear`, `term`),
-    UNIQUE INDEX `StudentAttendance_studentId_date_classId_subjectId_academicY_key`(`studentId`, `date`, `classId`, `subjectId`, `academicYear`, `term`),
+    UNIQUE INDEX `StudentAttendance_studentId_date_timetableSlotId_key`(`studentId`, `date`, `timetableSlotId`),
+    UNIQUE INDEX `StudentAttendance_studentId_date_classId_academicYear_term_key`(`studentId`, `date`, `classId`, `academicYear`, `term`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Assignment` (
+CREATE TABLE `Assessment` (
     `id` VARCHAR(191) NOT NULL,
     `schoolId` VARCHAR(191) NOT NULL,
     `classId` VARCHAR(191) NOT NULL,
     `subjectId` VARCHAR(191) NOT NULL,
-    `teacherId` VARCHAR(191) NOT NULL,
-    `title` VARCHAR(191) NOT NULL,
-    `description` TEXT NULL,
-    `maxPoints` DOUBLE NULL,
-    `dueDate` DATETIME(3) NULL,
     `academicYear` VARCHAR(191) NOT NULL,
     `term` ENUM('FIRST_TERM', 'SECOND_TERM', 'THIRD_TERM') NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `maxMarks` DOUBLE NOT NULL,
+    `assessmentDate` DATE NOT NULL,
+    `description` TEXT NULL,
+    `createdByUserId` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `Assignment_classId_subjectId_idx`(`classId`, `subjectId`),
-    INDEX `Assignment_teacherId_idx`(`teacherId`),
+    INDEX `Assessment_schoolId_academicYear_term_idx`(`schoolId`, `academicYear`, `term`),
+    INDEX `Assessment_classId_subjectId_idx`(`classId`, `subjectId`),
+    UNIQUE INDEX `Assessment_classId_subjectId_academicYear_term_name_key`(`classId`, `subjectId`, `academicYear`, `term`, `name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `StudentGrade` (
+CREATE TABLE `StudentMark` (
     `id` VARCHAR(191) NOT NULL,
+    `assessmentId` VARCHAR(191) NOT NULL,
     `studentId` VARCHAR(191) NOT NULL,
-    `subjectId` VARCHAR(191) NOT NULL,
-    `assignmentId` VARCHAR(191) NULL,
-    `teacherId` VARCHAR(191) NULL,
-    `grade` VARCHAR(191) NOT NULL,
-    `numericValue` DOUBLE NULL,
-    `comments` TEXT NULL,
-    `academicYear` VARCHAR(191) NOT NULL,
-    `term` ENUM('FIRST_TERM', 'SECOND_TERM', 'THIRD_TERM') NOT NULL,
-    `dateRecorded` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `marksObtained` DOUBLE NOT NULL,
+    `gradeLetter` VARCHAR(191) NULL,
+    `remarks` TEXT NULL,
+    `recordedById` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `StudentGrade_studentId_academicYear_term_idx`(`studentId`, `academicYear`, `term`),
-    INDEX `StudentGrade_subjectId_academicYear_term_idx`(`subjectId`, `academicYear`, `term`),
-    UNIQUE INDEX `StudentGrade_studentId_subjectId_assignmentId_academicYear_t_key`(`studentId`, `subjectId`, `assignmentId`, `academicYear`, `term`),
+    INDEX `StudentMark_studentId_assessmentId_idx`(`studentId`, `assessmentId`),
+    UNIQUE INDEX `StudentMark_assessmentId_studentId_key`(`assessmentId`, `studentId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -366,8 +363,8 @@ CREATE TABLE `FeeStructure` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `FeeStructure_schoolId_academicYear_category_idx`(`schoolId`, `academicYear`, `category`),
-    UNIQUE INDEX `FeeStructure_schoolId_name_category_academicYear_term_key`(`schoolId`, `name`, `category`, `academicYear`, `term`),
+    INDEX `FeeStructure_schoolId_academicYear_category_isActive_idx`(`schoolId`, `academicYear`, `category`, `isActive`),
+    UNIQUE INDEX `FeeStructure_schoolId_name_category_academicYear_term_freque_key`(`schoolId`, `name`, `category`, `academicYear`, `term`, `frequency`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -382,6 +379,7 @@ CREATE TABLE `Invoice` (
     `dueDate` DATE NOT NULL,
     `totalAmount` DECIMAL(10, 2) NOT NULL,
     `paidAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    `balanceDue` DECIMAL(10, 2) NOT NULL,
     `status` ENUM('PENDING', 'PAID', 'PARTIALLY_PAID', 'OVERDUE', 'CANCELLED', 'REFUNDED') NOT NULL DEFAULT 'PENDING',
     `notes` TEXT NULL,
     `academicYear` VARCHAR(191) NOT NULL,
@@ -449,7 +447,7 @@ CREATE TABLE `SchoolAnnouncement` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `SchoolAnnouncement_schoolId_publishDate_idx`(`schoolId`, `publishDate`),
+    INDEX `SchoolAnnouncement_schoolId_publishDate_isPublished_idx`(`schoolId`, `publishDate`, `isPublished`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -466,7 +464,7 @@ CREATE TABLE `ClassAnnouncement` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    INDEX `ClassAnnouncement_classId_publishDate_idx`(`classId`, `publishDate`),
+    INDEX `ClassAnnouncement_classId_publishDate_isPublished_idx`(`classId`, `publishDate`, `isPublished`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -612,6 +610,37 @@ CREATE TABLE `StudentMealSubscription` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `GradeScale` (
+    `id` VARCHAR(191) NOT NULL,
+    `schoolId` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `GradeScale_schoolId_isActive_idx`(`schoolId`, `isActive`),
+    UNIQUE INDEX `GradeScale_schoolId_name_key`(`schoolId`, `name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `GradeScaleEntry` (
+    `id` VARCHAR(191) NOT NULL,
+    `gradeScaleId` VARCHAR(191) NOT NULL,
+    `minPercentage` DOUBLE NOT NULL,
+    `maxPercentage` DOUBLE NOT NULL,
+    `gradeLetter` VARCHAR(191) NOT NULL,
+    `gradePoint` DOUBLE NULL,
+    `remark` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `GradeScaleEntry_gradeScaleId_idx`(`gradeScaleId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `Account` ADD CONSTRAINT `Account_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -697,25 +726,25 @@ ALTER TABLE `StudentAttendance` ADD CONSTRAINT `StudentAttendance_timetableSlotI
 ALTER TABLE `StudentAttendance` ADD CONSTRAINT `StudentAttendance_recordedById_fkey` FOREIGN KEY (`recordedById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Assignment` ADD CONSTRAINT `Assignment_classId_fkey` FOREIGN KEY (`classId`) REFERENCES `Class`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Assessment` ADD CONSTRAINT `Assessment_schoolId_fkey` FOREIGN KEY (`schoolId`) REFERENCES `School`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Assignment` ADD CONSTRAINT `Assignment_subjectId_fkey` FOREIGN KEY (`subjectId`) REFERENCES `Subject`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Assessment` ADD CONSTRAINT `Assessment_classId_fkey` FOREIGN KEY (`classId`) REFERENCES `Class`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Assignment` ADD CONSTRAINT `Assignment_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `Teacher`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Assessment` ADD CONSTRAINT `Assessment_subjectId_fkey` FOREIGN KEY (`subjectId`) REFERENCES `Subject`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `StudentGrade` ADD CONSTRAINT `StudentGrade_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `Student`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Assessment` ADD CONSTRAINT `Assessment_createdByUserId_fkey` FOREIGN KEY (`createdByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `StudentGrade` ADD CONSTRAINT `StudentGrade_subjectId_fkey` FOREIGN KEY (`subjectId`) REFERENCES `Subject`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `StudentMark` ADD CONSTRAINT `StudentMark_assessmentId_fkey` FOREIGN KEY (`assessmentId`) REFERENCES `Assessment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `StudentGrade` ADD CONSTRAINT `StudentGrade_assignmentId_fkey` FOREIGN KEY (`assignmentId`) REFERENCES `Assignment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `StudentMark` ADD CONSTRAINT `StudentMark_studentId_fkey` FOREIGN KEY (`studentId`) REFERENCES `Student`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `StudentGrade` ADD CONSTRAINT `StudentGrade_teacherId_fkey` FOREIGN KEY (`teacherId`) REFERENCES `Teacher`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `StudentMark` ADD CONSTRAINT `StudentMark_recordedById_fkey` FOREIGN KEY (`recordedById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `FeeStructure` ADD CONSTRAINT `FeeStructure_schoolId_fkey` FOREIGN KEY (`schoolId`) REFERENCES `School`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -803,3 +832,9 @@ ALTER TABLE `StudentMealSubscription` ADD CONSTRAINT `StudentMealSubscription_me
 
 -- AddForeignKey
 ALTER TABLE `StudentMealSubscription` ADD CONSTRAINT `StudentMealSubscription_assignedById_fkey` FOREIGN KEY (`assignedById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `GradeScale` ADD CONSTRAINT `GradeScale_schoolId_fkey` FOREIGN KEY (`schoolId`) REFERENCES `School`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `GradeScaleEntry` ADD CONSTRAINT `GradeScaleEntry_gradeScaleId_fkey` FOREIGN KEY (`gradeScaleId`) REFERENCES `GradeScale`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
