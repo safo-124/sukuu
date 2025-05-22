@@ -266,6 +266,7 @@ model Teacher {
   dateOfJoining     DateTime? @db.Date
   qualifications    String?   @db.Text
   specialization    String?
+  subjectAssignments ClassSubjectAssignment[] @relation("TeacherSubjectAssignments")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -367,6 +368,8 @@ model Class {
   academicYear      String
   homeroomTeacherId String?
   homeroomTeacher   Teacher? @relation("ClassHomeroomTeacher", fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
+  subjectAssignments ClassSubjectAssignment[] @relation("ClassSubjectLinks")
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -406,6 +409,7 @@ model Subject {
   name        String
   code        String?
   description String? @db.Text
+  assignedToClasses ClassSubjectAssignment[] @relation("SubjectClassLinks")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -857,4 +861,34 @@ model GradeScaleEntry {
   // Ensure no overlapping ranges within the same gradeScaleId
   // This is complex to enforce directly with @@unique. Application logic must ensure this.
   @@index([gradeScaleId])
+}
+
+// In your prisma/schema.prisma
+
+model ClassSubjectAssignment {
+  id        String @id @default(cuid())
+
+  classId   String
+  class     Class  @relation("ClassSubjectLinks", fields: [classId], references: [id], onDelete: Cascade) // If class is deleted, this assignment is removed
+
+  subjectId String
+  subject   Subject @relation("SubjectClassLinks", fields: [subjectId], references: [id], onDelete: Restrict) // Prevent subject deletion if it's assigned to classes
+
+  teacherId String? // Teacher for this subject in this class (can be optional, assigned later)
+  teacher   Teacher? @relation("TeacherSubjectAssignments", fields: [teacherId], references: [id], onDelete: SetNull) // If teacher is deleted, set this to null
+
+  academicYear String    // Should match the academic year of the Class record for consistency
+
+  // Any other specific details for this assignment, e.g., periodsPerWeek (Float?)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A subject should ideally be assigned only once to a particular class in a given academic year.
+  // The teacher is an attribute of this assignment.
+  @@unique([classId, subjectId, academicYear]) 
+
+  @@index([teacherId])
+  @@index([subjectId])
+  // No need to index classId again as it's part of the unique constraint which implies an index
 }
