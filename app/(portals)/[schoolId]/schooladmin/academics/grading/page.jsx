@@ -63,6 +63,14 @@ export default async function GradingOverviewPage({ params }) {
       icon: Edit,
       cta: "Manage Student Marks",
     },
+     {
+      title: "Generate Academic Reports",
+      description: "Create and view student report cards, transcripts, and performance summaries.",
+      href: `/${schoolId}/schooladmin/academics/grading/reports-dashboard`, // Changed href
+      icon: BarChart3,
+      cta: "Access Reports",
+      disabled: false, // Enable this
+    },
     {
       title: "Generate Academic Reports",
       description: "Create and view student report cards, transcripts, and performance summaries.",

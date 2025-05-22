@@ -2,6 +2,104 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@media print {
+  body {
+    -webkit-print-color-adjust: exact; /* Ensures backgrounds and colors print in Chrome/Safari */
+    print-color-adjust: exact;         /* Standard */
+    font-size: 10pt; /* Base font size for print */
+  }
+  /* Hide elements not relevant for print - like sidebars, navbars from layouts */
+  header, nav, aside, footer, .no-print, .print-button-container {
+    display: none !important;
+  }
+  /* Ensure the report card content takes full width */
+  .print-container {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+  }
+  .print-only {
+      display: block !important; /* Or flex, grid, etc., as needed */
+  }
+  /* Add more print-specific styles here */
+  /* e.g., force page breaks before/after certain sections if needed */
+  /* .academic-performance-section { page-break-before: auto; } */
+}
+.print-only { /* By default, hidden on screen */
+    display: none;
+}
+.print-only-block {
+  display: none;
+}
+.print-only-grid {
+  display: none;
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important; /* Ensures backgrounds and colors print in Chrome/Safari */
+    color-adjust: exact !important;         /* Standard for Firefox etc. */
+    font-size: 10pt; /* Adjust base print font size as needed */
+    margin: 0;
+    padding: 0;
+    background-color: #ffffff !important; /* Force white background for print */
+  }
+
+  /* Class to hide elements during print */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Classes to show elements ONLY during print */
+  .print-only-block {
+    display: block !important;
+  }
+  .print-only-grid {
+    display: grid !important;
+  }
+
+  /* Specific styling for the area containing the report cards when printing */
+  #report-card-printable-area {
+    margin: 0;
+    padding: 0.5cm; /* Define print margins for the content area */
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Styling for each individual report card when printed */
+  .report-card-container { /* This class should be on the root of ReportCardDisplay.jsx */
+    page-break-inside: avoid; /* Try to keep each report card on a single page */
+    margin: 0 0 1cm 0;      /* Margin between report cards if multiple are printed */
+    padding: 0;
+    box-shadow: none !important;
+    /* Optional: Add a light border around each report card on print */
+    /* border: 1px solid #ccc !important;  */
+    width: 100% !important; /* Ensure it uses the full printable width */
+  }
+
+  /* Ensure table borders are visible and light for print within report cards */
+  .report-card-container table, 
+  .report-card-container th, 
+  .report-card-container td {
+    border-width: 1px !important;
+    border-color: #e0e0e0 !important; /* Light gray for borders */
+  }
+  .report-card-container th {
+    background-color: #f8f8f8 !important; /* Very light gray for table headers */
+    color: #333333 !important; /* Ensure text color is dark for headers */
+  }
+  .report-card-container td {
+      color: #333333 !important; /* Ensure text color is dark for cells */
+  }
+
+  /* Remove box shadows from shadcn cards when printing within the report card */
+  .report-card-container [class*="shadow"] {
+      box-shadow: none !important;
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
