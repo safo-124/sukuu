@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { GraduationCap, FileText, Settings, BarChart3, ChevronLeft, ListPlus, Edit } from "lucide-react";
 
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ensure this path is correct
 import prisma from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,15 +18,15 @@ async function getSchoolName(schoolId) {
     return school?.name;
   } catch (error) {
     console.error("Failed to fetch school name for grading overview:", error);
-    return "Selected School";
+    return "Selected School"; // Fallback
   }
 }
 
 export async function generateMetadata({ params }) {
   const schoolName = await getSchoolName(params.schoolId);
   return {
-    title: `Grading & Reports - ${schoolName} | Sukuu`,
-    description: `Manage assessments, grades, and academic reports for ${schoolName}.`,
+    title: `Grading & Reports - ${schoolName || 'School'} | Sukuu`,
+    description: `Manage assessments, grades, and academic reports for ${schoolName || 'this school'}.`,
   };
 }
 
@@ -48,44 +48,43 @@ export default async function GradingOverviewPage({ params }) {
 
   const schoolName = await getSchoolName(schoolId);
 
+  // Ensure all titles are unique if used as keys, or use href as key
   const gradingSections = [
     {
+      id: "manage-assessments", // Added an id for a more robust key
       title: "Manage Assessments",
-      description: "Define tests, exams, assignments, and other evaluation criteria.",
+      description: "Define and organize tests, exams, assignments, and other evaluation criteria.",
       href: `/${schoolId}/schooladmin/academics/grading/assessments`,
       icon: ListPlus,
       cta: "Go to Assessments",
+      disabled: false,
     },
     {
-      title: "Enter & View Marks",
+      id: "enter-view-marks", // Added an id
+      title: "Enter & View Marks", // Changed from "/" to "&" from a previous version
       description: "Input and review student marks for various defined assessments.",
-      href: `/${schoolId}/schooladmin/academics/grading/assessments`, // Leads to assessments list first
+      href: `/${schoolId}/schooladmin/academics/grading/assessments`, // This directs to assessments list first
       icon: Edit,
       cta: "Manage Student Marks",
+      disabled: false,
     },
-     {
-      title: "Generate Academic Reports",
+    {
+      id: "generate-reports", // Added an id
+      title: "Generate Academic Reports", // This title should be unique
       description: "Create and view student report cards, transcripts, and performance summaries.",
-      href: `/${schoolId}/schooladmin/academics/grading/reports-dashboard`, // Changed href
+      href: `/${schoolId}/schooladmin/academics/grading/reports-dashboard`, 
       icon: BarChart3,
       cta: "Access Reports",
-      disabled: false, // Enable this
+      disabled: false, 
     },
     {
-      title: "Generate Academic Reports",
-      description: "Create and view student report cards, transcripts, and performance summaries.",
-      href: `/${schoolId}/schooladmin/academics/grading/reports`, 
-      icon: BarChart3,
-      cta: "View Reports",
-      // disabled: false, // Now enabled
-    },
-    {
+      id: "grading-settings", // Added an id
       title: "Grading Scales & Settings",
       description: "Configure grading systems, GPA calculations, and report card comments.",
       href: `/${schoolId}/schooladmin/academics/grading/settings`, 
       icon: Settings,
       cta: "Configure Settings",
-      // disabled: false, // Now enabled
+      disabled: false, 
     },
   ];
 
@@ -115,7 +114,8 @@ export default async function GradingOverviewPage({ params }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {gradingSections.map((section) => (
-          <Card key={section.title} className="flex flex-col hover:shadow-lg transition-shadow">
+          // Using section.id (or section.href if href is guaranteed unique) as key
+          <Card key={section.id || section.href} className="flex flex-col hover:shadow-lg transition-shadow">
             <CardHeader className="flex-row items-start gap-4 space-y-0 pb-4">
               <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
                  <section.icon className="h-7 w-7 text-primary" />
@@ -127,13 +127,13 @@ export default async function GradingOverviewPage({ params }) {
             </CardHeader>
             <CardContent className="flex-grow" /> {/* Spacer */}
             <CardFooter>
-              <Link href={section.href} passHref className="w-full"> {/* Links are now active */}
-                <Button className="w-full" > {/* No more disabled prop */}
+              <Link href={section.disabled ? "#!" : section.href} passHref className="w-full">
+                <Button className="w-full" disabled={section.disabled}>
                   {section.cta}
                 </Button>
               </Link>
             </CardFooter>
-            {/* No more "Coming Soon" message */}
+            {section.disabled && <p className="text-xs text-center text-muted-foreground pb-4 -mt-2">(Coming Soon)</p>}
           </Card>
         ))}
       </div>
