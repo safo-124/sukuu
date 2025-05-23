@@ -46,7 +46,15 @@ export default async function TimetableOverviewPage({ params }) {
       href: `/${schoolId}/schooladmin/timetable/generator`, // Placeholder
       icon: CalendarClock,
       cta: "Manage Timetables",
-      disabled: true,
+      disabled: false,   
+    },
+    {
+      title: "Class Timetables", // Updated title
+      description: "Create, view, and manage weekly schedules for each class.",
+      href: `/${schoolId}/schooladmin/timetable/manage`, // <<< Link to the new class selection page
+      icon: CalendarClock,
+      cta: "Manage Class Timetables",
+      // Enable this if it was disabled
     },
   ];
 
