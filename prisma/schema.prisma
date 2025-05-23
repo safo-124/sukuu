@@ -219,6 +219,7 @@ model School {
   transportRoutes    TransportRoute[]
   mealPlans          MealPlan[]
   assessments        Assessment[]
+  definedPeriods     SchoolPeriod[]
 }
 
 model SchoolAdmin {
@@ -891,4 +892,27 @@ model ClassSubjectAssignment {
   @@index([teacherId])
   @@index([subjectId])
   // No need to index classId again as it's part of the unique constraint which implies an index
+}
+
+model SchoolPeriod {
+  id        String  @id @default(cuid())
+  schoolId  String
+  school    School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  name      String  // e.g., "Period 1", "Morning Break", "Period 2"
+  startTime String  // Format "HH:MM" (e.g., "08:00", "10:30")
+  endTime   String  // Format "HH:MM" (e.g., "08:40", "11:00")
+  sortOrder Int     // For ordering the periods in the day
+  isBreak   Boolean @default(false) // To distinguish teaching periods from breaks
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A period name should be unique within a school for a given start time to avoid confusion
+  // However, sortOrder should primarily define the sequence.
+  // A simpler unique constraint might be on (schoolId, sortOrder) or (schoolId, name)
+  // Let's ensure sortOrder is unique per school for simplicity in ordering.
+  @@unique([schoolId, sortOrder])
+  @@unique([schoolId, name]) // Period names like "Period 1" should be unique per school
+  @@index([schoolId])
 }

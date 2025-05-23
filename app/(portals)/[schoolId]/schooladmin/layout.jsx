@@ -54,7 +54,7 @@ const schoolAdminNavItems = (schoolId) => [
   { href: `/${schoolId}/schooladmin/staff`, icon: UserCheck, label: "Staff" },
   { href: `/${schoolId}/schooladmin/academics`, icon: BookCopy, label: "Academics" },
   { href: `/${schoolId}/schooladmin/attendance`, icon: CheckSquare, label: "Attendance" }, // NEW
-  { href: `/${schoolId}/schooladmin/timetable`, icon: CalendarClock, label: "Timetable", disabled: true },
+  { href: `/${schoolId}/schooladmin/timetable`, icon: CalendarClock, label: "Timetable" },
   { href: `/${schoolId}/schooladmin/examinations`, icon: FileText, label: "Examinations", disabled: true }, // Kept as example
   { href: `/${schoolId}/schooladmin/finance`, icon: DollarSign, label: "Finance", disabled: true },
   { href: `/${schoolId}/schooladmin/communication`, icon: Megaphone, label: "Communication" }, // NEW
