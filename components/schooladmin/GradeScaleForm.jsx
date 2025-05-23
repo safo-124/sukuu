@@ -8,11 +8,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, PlusCircle, Save } from "lucide-react";
 
-import { gradeScaleSchema } from "@/lib/validators/gradeScaleValidators"; // Ensure this path is correct
+import { gradeScaleSchema } from "@/lib/validators/gradeScaleValidators";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch"; // For isActive
+import { Switch } from "@/components/ui/switch";
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
@@ -22,14 +22,12 @@ export default function GradeScaleForm({ schoolId, initialData, onFormSubmit }) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!initialData;
 
-  // For GradeScale, create and update schemas are the same (gradeScaleSchema) for its own fields.
-  // Entries are managed separately.
   const form = useForm({
     resolver: zodResolver(gradeScaleSchema),
     defaultValues: initialData || {
       name: "",
       description: "",
-      isActive: false, // Default to inactive for new scales, admin can explicitly activate
+      isActive: false,
     },
   });
 
@@ -85,16 +83,14 @@ export default function GradeScaleForm({ schoolId, initialData, onFormSubmit }) 
         }
         
         if (!isEditMode && result.gradeScale?.id) {
-          // On successful creation, redirect to the edit page for this new scale to add entries
+          // On successful CREATION, go to the edit page for this new scale to add entries
           router.push(`/${schoolId}/schooladmin/academics/grading/scales/${result.gradeScale.id}/edit`);
-        } else if (isEditMode) {
-          router.refresh(); // Refresh current page if it's the edit page itself
-        } else {
-           router.push(`/${schoolId}/schooladmin/academics/grading/settings`); // Fallback redirect
+        } else { 
+          // On successful UPDATE, or if creation didn't return ID for edit redirect, go to assessments list
+          router.push(`/${schoolId}/schooladmin/academics/grading/assessments`);
+          // router.refresh(); // Target page will fetch its own data.
         }
-        // Form reset is handled by useEffect if initialData changes, or manually if needed
-        if (!isEditMode) form.reset({ name: "", description: "", isActive: false });
-
+        // No form.reset() needed here as we are navigating away or the parent page (edit scale) will refresh.
       }
     } catch (error) {
       console.error("Grade scale form submission error:", error);
@@ -107,69 +103,14 @@ export default function GradeScaleForm({ schoolId, initialData, onFormSubmit }) 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Scale Name <span className="text-destructive">*</span></FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Standard K-12, University Scale" {...field} disabled={isSubmitting} />
-              </FormControl>
-              <FormDescription>A unique name for this grading scale within the school.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Briefly describe this grading scale, its purpose, or where it's used."
-                  {...field}
-                  rows={3}
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-            control={form.control}
-            name="isActive"
-            render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                <FormLabel className="text-base">Set as Active Scale</FormLabel>
-                <FormDescription>
-                    If checked, this scale will be the default for new reports. 
-                    Activating this scale will deactivate any other currently active scale.
-                </FormDescription>
-                </div>
-                <FormControl>
-                <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={isSubmitting}
-                    aria-readonly={isSubmitting}
-                />
-                </FormControl>
-            </FormItem>
-            )}
-        />
+        {/* ... form fields for name, description, isActive ... */}
+        <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Scale Name <span className="text-destructive">*</span></FormLabel><FormControl><Input placeholder="e.g., Standard K-12, University Scale" {...field} disabled={isSubmitting} /></FormControl><FormDescription>A unique name for this grading scale.</FormDescription><FormMessage /></FormItem>)} />
+        <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="Briefly describe this grading scale..." {...field} rows={3} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+        <FormField control={form.control} name="isActive" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Set as Active Scale</FormLabel><FormDescription>Activating this scale may deactivate others.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} /></FormControl></FormItem>)} />
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={isSubmitting} size="lg">
-            {isSubmitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              isEditMode ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />
-            )}
-            {isEditMode ? "Save Scale Changes" : "Create Grade Scale"}
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isEditMode ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />)}
+            {isEditMode ? "Save Scale Changes" : "Create & Add Entries"}
           </Button>
         </div>
       </form>

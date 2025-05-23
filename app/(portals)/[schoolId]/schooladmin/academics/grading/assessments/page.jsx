@@ -7,15 +7,15 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import AssessmentsDataTable from "@/components/schooladmin/AssessmentsDataTable"; // We will create this next
+import AssessmentsDataTable from "@/components/schooladmin/AssessmentsDataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-async function isAuthorizedSchoolAdmin(userId, schoolId) { /* ... (same helper as above or from shared lib) ... */
-    if (!userId || !schoolId) return false;
-    const assignment = await prisma.schoolAdmin.findFirst({
-        where: { userId: userId, schoolId: schoolId }
-    });
-    return !!assignment;
+async function isAuthorizedSchoolAdmin(userId, schoolId) {
+  if (!userId || !schoolId) return false;
+  const assignment = await prisma.schoolAdmin.findFirst({
+      where: { userId: userId, schoolId: schoolId }
+  });
+  return !!assignment;
 }
 
 async function getAssessmentsForSchool(schoolId, userId) {
@@ -37,20 +37,34 @@ async function getAssessmentsForSchool(schoolId, userId) {
     const assessments = await prisma.assessment.findMany({
       where: { schoolId: schoolId },
       include: {
-        class: { select: { name: true, section: true } },
+        class: { 
+          select: { 
+            name: true, 
+            section: true,
+            _count: { // Count active students in this class
+              select: { 
+                currentStudents: { where: { isActive: true } } 
+              } 
+            }
+          } 
+        },
         subject: { select: { name: true } },
-        createdByUser: { select: {firstName: true, lastName: true} } // User who created it
+        _count: { // Count how many student marks entries exist for this assessment
+          select: { studentMarks: true }
+        }
       },
       orderBy: [{ academicYear: 'desc' }, { term: 'asc' }, { assessmentDate: 'desc' }, { name: 'asc' }],
     });
     return { error: null, assessments, schoolName: school.name };
   } catch (error) {
     console.error(`Failed to fetch assessments for school ${schoolId}:`, error);
-    return { error: "DataFetchError", assessments: [], schoolName: (await prisma.school.findUnique({where: {id: schoolId}, select:{name:true}}))?.name };
+    const schoolNameForError = (await prisma.school.findUnique({where: {id: schoolId}, select:{name:true}}))?.name || "this school";
+    return { error: "DataFetchError", assessments: [], schoolName: schoolNameForError };
   }
 }
 
 export async function generateMetadata({ params }) {
+  // ... (metadata function remains the same)
   const schoolName = (await prisma.school.findUnique({ where: { id: params.schoolId }, select: { name: true } }))?.name;
   if (!schoolName) return { title: "Manage Assessments | Sukuu" };
   return {
@@ -60,6 +74,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function ManageAssessmentsPage({ params }) {
+  // ... (session checks and error handling remain the same) ...
   const { schoolId } = params;
   const session = await getServerSession(authOptions);
 
@@ -110,7 +125,7 @@ export default async function ManageAssessmentsPage({ params }) {
           </Button>
         </Link>
       </div>
-      <AssessmentsDataTable assessments={assessments} schoolId={schoolId} />
+      <AssessmentsDataTable assessments={assessments || []} schoolId={schoolId} /> {/* Pass empty array if assessments is null/undefined */}
     </div>
   );
 }
